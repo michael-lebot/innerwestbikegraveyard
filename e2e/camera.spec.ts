@@ -11,7 +11,7 @@ const GREEN = 'rgb(29, 107, 42)'
 const FINDING = 'Got your photo. Finding where you are…'
 // Number 12 Llewellyn St, Marrickville, 110 m from the live tag on that street.
 const LLEWELLYN_ST = { latitude: -33.90512, longitude: 151.17288 }
-// About 10 m from the live tag on Llewellyn St.
+// About 10 m from the live tag on Llewellyn St, nearest the lane behind it, Juliett St.
 const BESIDE_LIVE_TAG = { latitude: -33.90458, longitude: 151.17193 }
 // A rough position is used only once the page has listened for 10 seconds for a better one (§4.1).
 const ROUGH = { timeout: 15_000 }
@@ -110,7 +110,7 @@ test.describe('on a phone', () => {
       await takePhoto(page)
       await expect(dialog(page).getByRole('heading', { name: 'Is it one of these?' })).toBeFocused()
       await page.getByRole('button', { name: "No, it's another bike" }).click()
-      await addWithPhoto(page, 'Llewellyn St, Marrickville')
+      await addWithPhoto(page, 'Juliett St, Marrickville')
     })
   })
 
