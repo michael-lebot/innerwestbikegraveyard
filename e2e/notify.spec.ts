@@ -57,6 +57,48 @@ test.describe('Notify the service provider?', () => {
     await expect(page.getByRole('main').getByText(refused)).toBeVisible()
   })
 
+  test('says, on every click, how to send it without an email app: the address to copy, Gmail and Outlook.com', async ({
+    page,
+    context,
+    browserName,
+  }) => {
+    if (browserName === 'chromium') await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+    await page.goto(`/tag/${LLEWELLYN_ST}`)
+    await cta(page).click()
+    // The test browser has no email app either: the page stays put rather than following the mailto link.
+    await page.evaluate(() => document.addEventListener('click', (event) => event.preventDefault()))
+    // By keyboard, where focus matters: it stays on the link. (WebKit doesn't focus a link that is clicked.)
+    await emailLink(page).focus()
+    await page.keyboard.press('Enter')
+    const opening =
+      'Opening your email app. If nothing opens, copy the address and the message below, or write the email in ' +
+      'Gmail or Outlook.com.'
+    await expect(page.getByRole('main').getByText(opening)).toBeVisible()
+    await expect(page.locator('#announcer')).toHaveText(opening)
+    await expect(emailLink(page)).toBeFocused()
+    await expect(page.getByText('support-au@li.me', { exact: true })).toBeVisible()
+    const subject = encodeURIComponent('Lime e-bike, blocking footpath, Llewellyn St, Marrickville')
+    const gmail = page.getByRole('link', { name: 'Write it in Gmail (opens in a new tab)' })
+    const outlook = page.getByRole('link', { name: 'Write it in Outlook.com (opens in a new tab)' })
+    await expect(gmail).toHaveAttribute(
+      'href',
+      `https://mail.google.com/mail/?view=cm&fs=1&to=support-au%40li.me&su=${subject}&body=${encodeURIComponent(MESSAGE)}`,
+    )
+    await expect(outlook).toHaveAttribute(
+      'href',
+      `https://outlook.live.com/mail/0/deeplink/compose?to=support-au%40li.me&subject=${subject}&body=${encodeURIComponent(MESSAGE)}`,
+    )
+    for (const link of [gmail, outlook]) await expect(link).toHaveAttribute('target', '_blank')
+    const copyAddress = page.getByRole('button', { name: 'Copy address' })
+    for (const control of [copyAddress, gmail, outlook])
+      expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+    await copyAddress.click()
+    await expect(page.locator('#announcer')).toHaveText('Copied')
+    if (browserName === 'chromium')
+      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('support-au@li.me')
+    await expectNoAxeViolations(page)
+  })
+
   test('links to the tag page at the address the visitor reached the site at', async ({ request }) => {
     // As Vercel forwards a request for a preview or the custom domain.
     const html = await (

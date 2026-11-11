@@ -14,7 +14,8 @@ const SAYS: Record<Problem, string> = {
 }
 
 /**
- * The email about a tag to its operator, with its `mailto:` link, or null for a "Not sure" tag, which has no one to
+ * The email about a tag to its operator, with its `mailto:` link and Gmail and Outlook.com compose pages for a device
+ * with no email app, or null for a "Not sure" tag, which has no one to
  * write to. `origin` is the site's, as the visitor reached it, for the link to the tag's page.
  */
 export function operatorEmail(tag: PublicTag, origin: string) {
@@ -29,5 +30,14 @@ export function operatorEmail(tag: PublicTag, origin: string) {
     `Tagged on The Inner West E-bike Graveyard: ${origin}/tag/${tag.id}`
   // A mailto body breaks its lines with CRLF (RFC 6068).
   const body = encodeURIComponent(message.replaceAll('\n', '\r\n'))
-  return { to, subject, message, href: `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${body}` }
+  const [eTo, eSubject, eMessage] = [to, subject, message].map(encodeURIComponent)
+  return {
+    to,
+    subject,
+    message,
+    href: `mailto:${to}?subject=${eSubject}&body=${body}`,
+    // The web compose pages take plain LF line breaks.
+    gmail: `https://mail.google.com/mail/?view=cm&fs=1&to=${eTo}&su=${eSubject}&body=${eMessage}`,
+    outlook: `https://outlook.live.com/mail/0/deeplink/compose?to=${eTo}&subject=${eSubject}&body=${eMessage}`,
+  }
 }
