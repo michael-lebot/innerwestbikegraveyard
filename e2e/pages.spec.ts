@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { expectNoAxeViolations, resetDb, sql } from './support'
+import { expectNoAxeViolations, resetDb, siteLinks, sql } from './support'
 
 const LLEWELLYN_ST = '5eed0000-0000-4000-8000-000000000003'
 
@@ -22,7 +22,7 @@ const CSP = [
 test.beforeEach(() => resetDb())
 
 test.describe('the map screen shell', () => {
-  test('has the header, the map, the footer and, on phones, the Map | List toggle, with no CSP errors', async ({
+  test('has the header, the map, the footer or menu and, on phones, the Map | List toggle, with no CSP errors', async ({
     page,
     isMobile,
   }) => {
@@ -30,7 +30,8 @@ test.describe('the map screen shell', () => {
     page.on('console', (message) => message.type() === 'error' && errors.push(message.text()))
     await page.goto('/')
     await expect(page.getByRole('banner').getByRole('link', { name: 'The Inner West E-bike Graveyard' })).toBeVisible()
-    await expect(page.getByRole('contentinfo').getByRole('link', { name: 'Why this page exists' })).toBeVisible()
+    await expect((await siteLinks(page)).getByRole('link', { name: 'Why this page exists' })).toBeVisible()
+    await page.keyboard.press('Escape')
     await expect(page.getByRole('region', { name: 'Map', exact: true })).toBeVisible()
     const view = page.getByRole('navigation', { name: 'View' })
     // The side panel lists the tags itself, so it has no toggle (§13).
@@ -116,12 +117,12 @@ test.describe('the list', () => {
     await expectNoAxeViolations(page)
   })
 
-  test('opens a tag page from a row, and links to the text pages from its footer', async ({ page }) => {
+  test('opens a tag page from a row, and links to the text pages from its footer or menu', async ({ page }) => {
     await page.goto('/list')
     await page.getByRole('link', { name: /Llewellyn St/ }).click()
     await expect(page).toHaveURL(`/tag/${LLEWELLYN_ST}`)
     await page.goBack()
-    await page.getByRole('contentinfo').getByRole('link', { name: 'Privacy' }).click()
+    await (await siteLinks(page)).getByRole('link', { name: 'Privacy' }).click()
     await expect(page).toHaveURL('/privacy')
   })
 

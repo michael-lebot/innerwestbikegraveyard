@@ -119,3 +119,17 @@ export async function undoInAdmin(page: Page, id: string) {
   await expect(admin.getByText('Undone: the tag is live again, with the time it had left.')).toBeVisible()
   await admin.close()
 }
+
+/**
+ * Where the links about the site are (§4.7): the footer in the wide layout, or on a phone held upright the header's
+ * menu, which this opens.
+ */
+export async function siteLinks(page: Page) {
+  if (!(await menuButton(page).isVisible())) return page.getByRole('contentinfo')
+  if (!(await menu(page).isVisible())) await menuButton(page).click()
+  await expect(menu(page)).toBeVisible()
+  return menu(page)
+}
+
+export const menuButton = (page: Page) => page.getByRole('banner').getByRole('button', { name: 'Menu' })
+export const menu = (page: Page) => page.getByRole('navigation', { name: 'About this site' })
