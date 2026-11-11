@@ -67,7 +67,9 @@ test.describe('Notify the service provider?', () => {
     await cta(page).click()
     // The test browser has no email app either: the page stays put rather than following the mailto link.
     await page.evaluate(() => document.addEventListener('click', (event) => event.preventDefault()))
-    await emailLink(page).click()
+    // By keyboard, where focus matters: it stays on the link. (WebKit doesn't focus a link that is clicked.)
+    await emailLink(page).focus()
+    await page.keyboard.press('Enter')
     const opening =
       'Opening your email app. If nothing opens, copy the address and the message below, or write the email in ' +
       'Gmail or Outlook.com.'
