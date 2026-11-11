@@ -6,12 +6,10 @@ import { TagRow } from './TagRow'
 /** "N bikes here": the tags under a tap where pins overlap, to choose one (§4.1). Not a dialog: the map stays live. */
 export function CrowdChooser({
   tags,
-  now,
   onSelect,
   onClose,
 }: {
   tags: PublicTag[]
-  now: Date
   onSelect: (tag: PublicTag) => void
   onClose: () => void
 }) {
@@ -31,7 +29,7 @@ export function CrowdChooser({
       <ul className="flex flex-col gap-2">
         {tags.toSorted(byPlace).map((tag) => (
           <li key={tag.id}>
-            <TagRow tag={tag} now={now} onSelect={onSelect} />
+            <TagRow tag={tag} onSelect={onSelect} />
           </li>
         ))}
       </ul>
