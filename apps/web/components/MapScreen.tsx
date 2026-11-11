@@ -240,7 +240,7 @@ export function MapScreen() {
         className="z-10 flex max-h-[60dvh] flex-col gap-3 overflow-y-auto overscroll-contain border-t border-line bg-white p-4 shadow-[0_-4px_12px_rgb(0_0_0/0.08)] wide:max-h-none wide:w-95 wide:shrink-0 wide:border-t-0 wide:border-r wide:shadow-[4px_0_12px_rgb(0_0_0/0.08)]"
       >
         {crowded?.length ? (
-          <CrowdChooser tags={crowded} now={now} onSelect={select} onClose={closeChooser} />
+          <CrowdChooser tags={crowded} onSelect={select} onClose={closeChooser} />
         ) : card ? (
           <TagCard key={card.id} tag={card} now={now} onDone={(tag) => apply(card.id, tag)} onClose={closeCard} />
         ) : tagging ? (
@@ -287,7 +287,7 @@ export function MapScreen() {
             </div>
             {tags && (
               <div className="hidden wide:block">
-                <TagList tags={tags} now={now} onSelect={select} />
+                <TagList tags={tags} onSelect={select} />
               </div>
             )}
           </>

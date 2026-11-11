@@ -6,15 +6,7 @@ import { TagRow } from './TagRow'
  * Live tags grouped by suburb: suburbs, then the streets in each, in alphabetical order. `onSelect` as on TagRow.
  * Without it, this is /list, where each row has Still there and Removed (§10.3); on the map they are on the card.
  */
-export function TagList({
-  tags,
-  now,
-  onSelect,
-}: {
-  tags: PublicTag[]
-  now: Date
-  onSelect?: (tag: PublicTag) => void
-}) {
+export function TagList({ tags, onSelect }: { tags: PublicTag[]; onSelect?: (tag: PublicTag) => void }) {
   const bySuburb = new Map<string, PublicTag[]>()
   for (const tag of tags.toSorted(byPlace)) {
     const group = bySuburb.get(tag.suburb)
@@ -33,7 +25,7 @@ export function TagList({
           <ul className={`flex flex-col ${onSelect ? 'gap-2' : 'gap-6'}`}>
             {group.map((tag) => (
               <li key={tag.id} className="flex flex-col gap-2">
-                <TagRow tag={tag} now={now} onSelect={onSelect} />
+                <TagRow tag={tag} onSelect={onSelect} />
                 {!onSelect && <TagActions id={tag.id} outlined />}
               </li>
             ))}
