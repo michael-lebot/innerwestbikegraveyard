@@ -200,6 +200,8 @@ test.describe('Reduce motion', () => {
           if (x < 160) await page.evaluate(() => new Promise(requestAnimationFrame))
         }
         await page.mouse.up()
+        // The frame that draws the last move, so it isn't counted as glide.
+        await page.evaluate(() => new Promise(requestAnimationFrame))
         const released = await pinX()
         await page.waitForTimeout(2500)
         const glide = Math.abs((await pinX()) - released)
