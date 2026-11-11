@@ -10,11 +10,11 @@ export default function PrivacyPage() {
       <h1>Privacy</h1>
       <p>
         <strong>TLDR;</strong> I used AI to create this app. The app itself doesn&apos;t use any AI. The app accesses
-        your location (if you allow it), but it only leaves your device if you use it to add a tag, and then it&apos;s
-        shown publicly on the map. The app doesn&apos;t collect your name or email address. Like any website, it sees
-        your IP address: when you add, mark or report something, it keeps a scrambled version of it, and of a random ID
-        stored in your browser, for up to {HASH_RETENTION_DAYS} days to stop abuse. Tags, photos and the database are
-        hosted in Sydney, Australia.
+        your location (if you allow it, when you tap Use my location or Take a photo of a bike), but it only leaves your
+        device if you use it to add a tag, and then it&apos;s shown publicly on the map. The app doesn&apos;t collect
+        your name or email address. Like any website, it sees your IP address: when you add, mark or report something,
+        it keeps a scrambled version of it, and of a random ID stored in your browser, for up to {HASH_RETENTION_DAYS}{' '}
+        days to stop abuse. Tags, photos and the database are hosted in Sydney, Australia.
       </p>
 
       <h2>What the app keeps</h2>
@@ -49,9 +49,10 @@ export default function PrivacyPage() {
           there for a day.
         </li>
         <li>
-          <strong>Your location,</strong> only if you tap Use my location, and your browser asks you first. It is read
-          once and stays in your browser, which uses it to suggest a pin. Only if you use that pin is the spot sent, and
-          then it is stored as the bike&apos;s public spot: where you were standing.
+          <strong>Your location,</strong> only if you tap Use my location, or after you take a photo with Take a photo
+          of a bike, and your browser asks you first. It is read for that one try and stays in your browser, which uses
+          it to suggest a pin. Only if you add a tag there is the spot sent, and then it is stored as the bike&apos;s
+          public spot: where you were standing.
         </li>
         <li>
           <strong>Reduce motion:</strong> your choice stays in your browser&apos;s local storage. It is never sent.

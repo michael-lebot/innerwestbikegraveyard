@@ -51,11 +51,11 @@ async function placeBesideLlewellynSt(page: Page, isMobile: boolean) {
 }
 
 const dialog = (page: Page) => page.getByRole('dialog')
-/** The green primary buttons and links showing: §9 allows one a screen. */
+/** The green primary buttons and links showing, and Take a photo of a bike's label: §9 allows one a screen. */
 const greenButtons = (page: Page) =>
   page.evaluate(
     () =>
-      [...document.querySelectorAll('button, a')].filter(
+      [...document.querySelectorAll('button, a, label')].filter(
         (element) => element.checkVisibility() && getComputedStyle(element).backgroundColor === 'rgb(29, 107, 42)',
       ).length,
   )

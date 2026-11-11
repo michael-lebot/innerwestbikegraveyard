@@ -1,5 +1,7 @@
 // The interface's buttons (§9): the one green primary action on a screen, and outlined secondary ones, 48 px tall.
 export const PRIMARY = 'flex min-h-12 items-center justify-center rounded-[10px] bg-brand px-4 font-bold text-white'
+/** PRIMARY, outlined like SECONDARY where Take a photo of a bike shows and is the green one (§4.3, §9). */
+export const PRIMARY_UNLESS_CAMERA = `${PRIMARY} pointer-coarse:border pointer-coarse:border-edge pointer-coarse:bg-transparent pointer-coarse:text-current`
 export const SECONDARY = 'flex min-h-12 items-center justify-center rounded-[10px] border border-edge px-4 font-bold'
 /** A smaller outlined one, 44 px tall, beside a heading or a line: Close, Cancel and Change location. */
 export const SMALL = 'min-h-11 rounded-[10px] border border-edge px-4 font-bold'
