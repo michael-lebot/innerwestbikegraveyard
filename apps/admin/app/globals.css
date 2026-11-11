@@ -1,0 +1,4 @@
+@import 'tailwindcss';
+@import '@iwb/shared/theme.css';
+
+/* The admin app uses the system font; only the public site loads Atkinson Hyperlegible (plan assumption 22). */

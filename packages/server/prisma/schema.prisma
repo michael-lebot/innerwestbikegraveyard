@@ -1,0 +1,179 @@
+// The whole data model of SPEC.md §5.1. Tables, columns and enums are snake_case in Postgres.
+
+generator client {
+  provider   = "prisma-client"
+  output     = "../src/generated/prisma"
+  engineType = "client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TagStatus {
+  active
+  removed
+  taken_down
+
+  @@map("tag_status")
+}
+
+enum Problem {
+  blocking_footpath
+  knocked_over
+  blocking_ramp
+  in_waterway
+  in_park
+  damaged
+
+  @@map("problem")
+}
+
+enum TagEventType {
+  created
+  still_there
+  removed
+  restored
+  taken_down
+
+  @@map("tag_event_type")
+}
+
+enum PhotoStatus {
+  visible
+  hidden
+  deleted
+
+  @@map("photo_status")
+}
+
+enum ReportReason {
+  not_share_bike
+  privacy
+  offensive
+  other
+
+  @@map("report_reason")
+}
+
+enum ReportResolution {
+  restored
+  deleted
+  expired
+
+  @@map("report_resolution")
+}
+
+/// A tag is live while status = 'active' and expires_at > now(). Expiry is never stored as a status (§4.2).
+model Tag {
+  /// Made in the browser, so a retried create can't make a second tag (§5.3).
+  id              String     @id @db.Uuid
+  lat             Decimal    @db.Decimal(9, 6)
+  lng             Decimal    @db.Decimal(9, 6)
+  suburb          String
+  street          String
+  /// A key of OPERATORS in packages/shared/src/config.ts, so adding an operator needs no migration.
+  operator        String
+  problem         Problem
+  status          TagStatus  @default(active)
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  lastConfirmedAt DateTime   @default(now()) @map("last_confirmed_at") @db.Timestamptz
+  expiresAt       DateTime   @map("expires_at") @db.Timestamptz
+  removedAt       DateTime?  @map("removed_at") @db.Timestamptz
+  confirmCount    Int        @default(0) @map("confirm_count")
+  events          TagEvent[]
+  photo           Photo?
+
+  @@index([status, expiresAt])
+  @@map("tags")
+}
+
+model TagEvent {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tagId       String       @map("tag_id") @db.Uuid
+  type        TagEventType
+  at          DateTime     @default(now()) @db.Timestamptz
+  /// The browser-made ID of the write, so a repeat does nothing new (§5.3).
+  requestId   String       @unique @map("request_id") @db.Uuid
+  /// Cleared after 30 days (§6).
+  visitorHash String?      @map("visitor_hash")
+  /// Cleared after 30 days (§6).
+  ipHash      String?      @map("ip_hash")
+  tag         Tag          @relation(fields: [tagId], references: [id])
+
+  @@index([tagId])
+  @@index([at])
+  @@map("tag_events")
+}
+
+/// status records moderation only. It never changes because its tag changed (§4.3).
+model Photo {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// One photo per tag.
+  tagId       String        @unique @map("tag_id") @db.Uuid
+  blobPath    String        @map("blob_path")
+  thumbPath   String        @map("thumb_path")
+  width       Int
+  height      Int
+  bytes       Int
+  status      PhotoStatus   @default(visible)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  hiddenAt    DateTime?     @map("hidden_at") @db.Timestamptz
+  deletedAt   DateTime?     @map("deleted_at") @db.Timestamptz
+  tag         Tag           @relation(fields: [tagId], references: [id])
+  reports     PhotoReport[]
+
+  @@map("photos")
+}
+
+model PhotoReport {
+  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  photoId     String            @map("photo_id") @db.Uuid
+  reason      ReportReason
+  /// The browser-made ID of the report, so a repeat does nothing new (§5.3).
+  requestId   String            @unique @map("request_id") @db.Uuid
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  /// Cleared after 30 days (§6).
+  visitorHash String?           @map("visitor_hash")
+  /// Cleared after 30 days (§6).
+  ipHash      String?           @map("ip_hash")
+  /// When a sender took it for an email. The digest takes it again once this is 10 minutes old with no email sent.
+  claimedAt   DateTime?         @map("claimed_at") @db.Timestamptz
+  /// When Resend accepted its email.
+  notifiedAt  DateTime?         @map("notified_at") @db.Timestamptz
+  resolvedAt  DateTime?         @map("resolved_at") @db.Timestamptz
+  resolution  ReportResolution?
+  photo       Photo             @relation(fields: [photoId], references: [id])
+
+  @@index([photoId])
+  @@index([createdAt])
+  @@map("photo_reports")
+}
+
+/// Deleted 48 hours after window_start (§6).
+model RateCounter {
+  /// action:scope:hash:window
+  key         String   @id
+  count       Int
+  windowStart DateTime @map("window_start") @db.Timestamptz
+
+  @@map("rate_counters")
+}
+
+/// Deleted after 48 hours, so older IP hashes can't be tied to an IP (§6).
+model DailySalt {
+  day  DateTime @id @db.Date
+  salt String
+
+  @@map("daily_salts")
+}
+
+/// Exactly one row (id = 1), created by the initial migration.
+model SiteState {
+  id                  Int       @id @default(1)
+  uploadsPausedAt     DateTime? @map("uploads_paused_at") @db.Timestamptz
+  uploadsPausedReason String?   @map("uploads_paused_reason")
+
+  @@map("site_state")
+}

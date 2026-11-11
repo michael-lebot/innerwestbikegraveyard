@@ -1,0 +1,83 @@
+@import 'tailwindcss';
+@import '@iwb/shared/theme.css';
+
+@font-face {
+  font-family: 'Atkinson Hyperlegible';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/atkinson-hyperlegible-latin-400-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Atkinson Hyperlegible';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/atkinson-hyperlegible-latin-700-normal.woff2') format('woff2');
+}
+
+@theme {
+  --font-sans: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  /* The selected pin's bob, from the mockup: two cycles, then still (§10.5). */
+  --animate-bob: bob 1s steps(2) 2;
+
+  @keyframes bob {
+    50% {
+      transform: translateY(-4px);
+    }
+  }
+
+  /* The map's loading bike (MapLoading.tsx): a turn on its rear hub, 30° a step, front wheel up first. It and the dots
+     repeat until the map is ready, the one exception to §10.5's no looping. */
+  --animate-wheelie: wheelie 1.8s steps(12) infinite;
+
+  @keyframes wheelie {
+    to {
+      transform: rotate(-360deg);
+    }
+  }
+
+  /* Its "Map loading" dots, uncovered one at a time: none, one, two, three, then again. */
+  --animate-ellipsis: ellipsis 1.6s steps(4, jump-none) infinite;
+
+  @keyframes ellipsis {
+    from {
+      clip-path: inset(0 100% 0 0);
+    }
+    to {
+      clip-path: inset(0);
+    }
+  }
+}
+
+/* Motion follows the visitor's Reduce motion choice (lib/motion.ts) either way, and the OS setting without one, so
+   every motion-safe: and motion-reduce: class obeys the footer's switch (§10.5). */
+@custom-variant motion-safe {
+  &:where([data-reduce-motion='false'] *) {
+    @slot;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    &:where(:root:not([data-reduce-motion='true']) *) {
+      @slot;
+    }
+  }
+}
+
+@custom-variant motion-reduce {
+  &:where([data-reduce-motion='true'] *) {
+    @slot;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &:where(:root:not([data-reduce-motion='false']) *) {
+      @slot;
+    }
+  }
+}
+
+/* The map screen's side-panel layout: 768 px and wider, and phones held sideways (§12, §13). */
+@custom-variant wide {
+  @media (width >= 48rem), (orientation: landscape) {
+    @slot;
+  }
+}

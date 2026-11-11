@@ -1,0 +1,30 @@
+{
+  "name": "@iwb/shared",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./geo": "./src/geo.ts",
+    "./picker": "./src/picker.ts",
+    "./palette": "./src/palette.ts",
+    "./data/*": "./data/*",
+    "./theme.css": "./theme.css"
+  },
+  "scripts": {
+    "data:fetch": "node scripts/fetch-nsw.ts",
+    "data:build": "node scripts/build-data.ts",
+    "test": "vitest run",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@turf/boolean-point-in-polygon": "7.4.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@turf/turf": "7.4.0",
+    "@types/geojson": "catalog:"
+  }
+}

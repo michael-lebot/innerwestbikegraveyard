@@ -1,0 +1,20 @@
+# Postgres 18 for local development and tests. Databases: iwb (dev), iwb_test (Vitest), iwb_e2e (Playwright).
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: iwb
+      POSTGRES_PASSWORD: iwb
+      POSTGRES_DB: iwb
+    ports:
+      - '54318:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD', 'pg_isready', '--username', 'iwb', '--dbname', 'iwb']
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pgdata:

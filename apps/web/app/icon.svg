@@ -1,0 +1,7 @@
+<!-- The header's headstone (components/Header.tsx) on a 16 × 16 grid: each of its pixels is one pixel in a tab. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="-2 -1 16 16" shape-rendering="crispEdges">
+  <path fill="#9aa5b1" d="M3 1h6v1h1v1h1v10H1V3h1V2h1z"/>
+  <path fill="#c4ccd4" d="M3 2h5v1h1v1h1v8H2V4h1z"/>
+  <path fill="#1f2a36" d="M5 4h2v1h1v1H7v2H5V6H4V5h1z"/>
+  <path fill="#3c9a3a" d="M0 13h12v1H0z"/>
+</svg>

@@ -1,0 +1,39 @@
+{
+  "name": "inner-west-bikes",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "db:up": "docker compose up --detach --wait",
+    "db:down": "docker compose down",
+    "db:reset": "pnpm --filter @iwb/server exec prisma migrate reset --force --skip-generate --skip-seed && pnpm --filter @iwb/server seed",
+    "tiles": "apps/web/scripts/fetch-tiles.sh",
+    "dev": "turbo run dev",
+    "lint": "eslint . && prettier --check .",
+    "typecheck": "turbo run typecheck && tsc",
+    "test": "turbo run test",
+    "build": "turbo run build",
+    "start": "pnpm --recursive --parallel start",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm e2e && pnpm lhci",
+    "e2e": "playwright test",
+    "lhci": "lhci autorun"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@lhci/cli": "0.16.0",
+    "@playwright/test": "1.65.0",
+    "@types/node": "24.19.2",
+    "@types/pg": "8.23.1",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.5",
+    "next": "catalog:",
+    "pg": "8.23.1",
+    "prettier": "3.9.10",
+    "turbo": "2.11.10",
+    "typescript": "6.0.3",
+    "vitest": "4.1.12"
+  }
+}

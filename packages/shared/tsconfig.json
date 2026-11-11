@@ -1,0 +1,6 @@
+{
+  "extends": "../../tsconfig.base.json",
+  // The scripts run with Node's type stripping, which needs the .ts in their relative imports.
+  "compilerOptions": { "allowImportingTsExtensions": true },
+  "include": ["src", "scripts"]
+}

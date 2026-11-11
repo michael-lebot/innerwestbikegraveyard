@@ -1,0 +1,31 @@
+{
+  "ci": {
+    "collect": {
+      "url": ["http://localhost:3000/", "http://localhost:3000/list"],
+      "numberOfRuns": 3,
+      "startServerCommand": "DATABASE_URL=postgresql://iwb:iwb@localhost:54318/iwb_e2e pnpm --filter @iwb/web start",
+      "startServerReadyPattern": "Ready in"
+    },
+    "assert": {
+      "assertMatrix": [
+        {
+          "matchingUrlPattern": "/$",
+          "//": "No TBT on the map page: its software-drawn WebGL measures seconds here; e2e/perf.spec.ts gates its interactions (SPEC §11.1).",
+          "assertions": {
+            "largest-contentful-paint": ["error", { "maxNumericValue": 2500, "aggregationMethod": "median" }],
+            "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1, "aggregationMethod": "median" }]
+          }
+        },
+        {
+          "matchingUrlPattern": "/list$",
+          "assertions": {
+            "largest-contentful-paint": ["error", { "maxNumericValue": 2500, "aggregationMethod": "median" }],
+            "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1, "aggregationMethod": "median" }],
+            "total-blocking-time": ["error", { "maxNumericValue": 200, "aggregationMethod": "median" }]
+          }
+        }
+      ]
+    },
+    "upload": { "target": "filesystem", "outputDir": ".lighthouseci" }
+  }
+}

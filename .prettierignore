@@ -1,0 +1,3 @@
+# Hand-formatted documents and generated files. Prettier also skips everything in .gitignore.
+pnpm-lock.yaml
+packages/shared/data/

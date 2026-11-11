@@ -1,0 +1,78 @@
+# Every gate of `pnpm verify`, on every pull request (whatever its base, so stacked PRs run) and on main.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, types and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The same Postgres as local development: docker-compose.yml is its one definition.
+      - run: pnpm db:up
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+
+  e2e:
+    name: Build, end-to-end and Lighthouse
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:up
+      - id: playwright
+        run: echo "version=$(pnpm exec playwright --version | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      # On a cache hit this only installs the system libraries the browsers need.
+      - run: pnpm exec playwright install --with-deps chromium webkit
+      # The real Inner West extract, cut once from the pinned build and cached until the script or the bounds change.
+      - id: tiles
+        uses: actions/cache@v6
+        with:
+          path: apps/web/public/tiles
+          key: tiles-${{ hashFiles('apps/web/scripts/fetch-tiles.sh', 'packages/shared/data/council.json') }}
+      # The pinned go-pmtiles release, run only if its bytes match the digest GitHub recorded for it.
+      - if: steps.tiles.outputs.cache-hit != 'true'
+        env:
+          PMTILES_URL: https://github.com/protomaps/go-pmtiles/releases/download/v1.31.2/go-pmtiles_1.31.2_Linux_x86_64.tar.gz
+          PMTILES_SHA256: 3ed7dbf4ec2e6dfe5e25b6f70d1ffc932729f93c86db353bf514dd71010a312f
+        run: |
+          curl --silent --fail --location --output "$RUNNER_TEMP/pmtiles.tar.gz" "$PMTILES_URL"
+          echo "$PMTILES_SHA256  $RUNNER_TEMP/pmtiles.tar.gz" | sha256sum --check --strict
+          tar --extract --gzip --file "$RUNNER_TEMP/pmtiles.tar.gz" --directory "$RUNNER_TEMP" pmtiles
+          PATH="$RUNNER_TEMP:$PATH" pnpm tiles
+      - run: pnpm build
+      - run: pnpm e2e
+      - run: pnpm lhci
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: reports
+          path: |
+            playwright-report/
+            test-results/
+            .lighthouseci/
+          include-hidden-files: true
