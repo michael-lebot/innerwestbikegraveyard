@@ -74,7 +74,7 @@ test.describe('Choose by street', () => {
     await expect(dialog(page).getByRole('heading', { name: 'Tag a dumped bike' })).toBeFocused()
     await expect(dialog(page)).toContainText('Pin on Llewellyn St, Marrickville')
     await chip(page, 'Lime').click()
-    await chip(page, 'Damaged').click()
+    await chip(page, 'Abandoned').click()
     await dialog(page).getByRole('button', { name: 'Add to the map' }).click()
     await expect(announced(page)).toHaveText('Tag added')
     await expect(page.getByRole('heading', { name: '15 bikes in the graveyard' })).toBeVisible()
@@ -84,8 +84,9 @@ test.describe('Choose by street', () => {
     const body = (await posted).postDataJSON()
     expect(Object.keys(body).sort()).toEqual(['id', 'lat', 'lng', 'operator', 'problem', 'street'])
     expect(body.street).toBe('Llewellyn St')
-    expect(await sql(`SELECT suburb, street FROM tags WHERE id = '${body.id}'`)).toEqual([
-      { suburb: 'Marrickville', street: 'Llewellyn St' },
+    expect(body.problem).toBe('abandoned')
+    expect(await sql(`SELECT suburb, street, problem::text FROM tags WHERE id = '${body.id}'`)).toEqual([
+      { suburb: 'Marrickville', street: 'Llewellyn St', problem: 'abandoned' },
     ])
     // And /list never loads the map (§10.3).
     for (const script of scripts) expect(await script.text()).not.toContain('maplibre')

@@ -132,10 +132,14 @@ test.describe('Notify the service provider?', () => {
         'Coordinates: -33.883891, 151.155464\n' +
         `Tagged on The Inner West E-bike Graveyard: http://localhost:3000/tag/${MARION_ST}`,
     )
-    // The message, then Copy, follow the link in the tab order of a desktop keyboard. (On a phone, WebKit's Tab skips
-    // buttons and links.)
+    // Gmail, Outlook.com, the message, then Copy follow the link in the tab order of a desktop keyboard. (On a phone,
+    // WebKit's Tab skips buttons and links.)
     if (!isMobile) {
       await emailLink(page, 'Ario').focus()
+      for (const name of [/^Write it in Gmail/, /^Write it in Outlook.com/]) {
+        await page.keyboard.press('Tab')
+        await expect(page.getByRole('link', { name })).toBeFocused()
+      }
       await page.keyboard.press('Tab')
       await expect(message(page)).toBeFocused()
       await page.keyboard.press('Tab')

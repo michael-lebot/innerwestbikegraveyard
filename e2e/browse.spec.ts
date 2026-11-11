@@ -164,14 +164,14 @@ test('keeps the preview framed in the outside grey, with the loading bike over i
 test('leaves the map for another page without a script error', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
-  await page.goto('/')
+  // Onto the map and off it within the page, so the map is torn down in place: by the header's name, then Back. (The
+  // site links open new tabs.)
+  await page.goto('/why')
+  await page.getByRole('banner').getByRole('link', { name: 'The Inner West E-bike Graveyard' }).click()
   await expect(page.locator('[data-map-ready]')).toBeAttached()
-  // By a link that stays in this tab: List on a phone, or a row of the desktop's side panel. The site links open new tabs.
-  const list = page.getByRole('navigation', { name: 'View' }).getByRole('link', { name: 'List' })
-  if (await list.isVisible()) await list.click()
-  else await page.locator('#sheet').getByRole('link').first().click()
-  await expect(page).not.toHaveURL('/')
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  await page.goBack()
+  await expect(page).toHaveURL('/why')
+  await expect(page.getByRole('heading', { level: 1, name: 'Why this page exists' })).toBeVisible()
   expect(errors).toEqual([])
 })
 
@@ -268,7 +268,10 @@ test.describe('pins', () => {
     await expect(page.locator('[data-map-ready]')).toBeAttached()
   })
 
-  test('are one 44 px button per live tag, named in full, in suburb then street order', async ({ page }) => {
+  test('are one button per live tag with a 44 px tap target, named in full, in suburb then street order', async ({
+    page,
+    isMobile,
+  }) => {
     await expect(pins(page)).toHaveCount(14)
     // axe spares the pins from target-size because they may overlap, so their size is checked here (§10.5): the button
     // is the headstone, so its outline hugs it, and a box around it takes taps.
@@ -279,8 +282,12 @@ test.describe('pins', () => {
       }),
     )
     expect(Math.min(...sides)).toBeGreaterThanOrEqual(44)
-    const stone = (await pins(page).first().boundingBox())!
+    // A tap in that box but off the stone, above its top-left corner, still picks it: Ashfield's pin is alone.
+    const ashfield = page.getByRole('button', { name: /Liverpool Rd, Ashfield/ })
+    const stone = (await ashfield.boundingBox())!
     expect([stone.width, stone.height]).toEqual([28, 30])
+    await tap(page, isMobile, { x: stone.x - 6, y: stone.y - 10 })
+    await expect(ashfield).toHaveAttribute('aria-expanded', 'true')
     const names = await pins(page).evaluateAll((buttons) => buttons.map((button) => button.ariaLabel ?? ''))
     expect(names[0]).toMatch(
       /^Hello e-bike, blocking footpath, Liverpool Rd, Ashfield, disappears in 1 hour, at \d{1,2}:\d\d [ap]m \w+day$/,
