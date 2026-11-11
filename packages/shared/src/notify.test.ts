@@ -33,6 +33,10 @@ describe('operatorEmail', () => {
         'Llewellyn%20St%2C%20Marrickville.%0D%0A%0D%0ACoordinates%3A%20-33.904497%2C%20151.171932%0D%0A' +
         'Tagged%20on%20The%20Inner%20West%20E-bike%20Graveyard%3A%20https%3A%2F%2Fexample.org%2Ftag%2F' +
         '5eed0000-0000-4000-8000-000000000003',
+      gmail: expect.stringMatching(/^https:\/\/mail\.google\.com\/mail\/\?view=cm&fs=1&to=support-au%40li\.me&su=Lime/),
+      outlook: expect.stringMatching(
+        /^https:\/\/outlook\.live\.com\/mail\/0\/deeplink\/compose\?to=support-au%40li\.me/,
+      ),
     })
   })
 
@@ -78,5 +82,28 @@ describe('operatorEmail', () => {
     // A mailto body breaks its lines with CRLF (RFC 6068).
     expect(url.searchParams.get('body')).toBe(email.message.replaceAll('\n', '\r\n'))
     expect([...url.searchParams.keys()]).toEqual(['subject', 'body'])
+  })
+
+  it('fills in the Gmail and Outlook.com compose pages, keeping commas, line breaks and ampersands', () => {
+    const email = operatorEmail({ ...tag, street: "O'Connell St & Lane #2?" }, ORIGIN)!
+    expect(email.gmail).toContain('&body=I%20am%20reporting')
+    expect(email.gmail).toContain('Marrickville.%0A%0ACoordinates%3A%20-33.904497%2C%20151.171932%0ATagged')
+    expect(email.gmail).toContain("O'Connell%20St%20%26%20Lane%20%232%3F")
+    const gmail = new URL(email.gmail)
+    expect(`${gmail.origin}${gmail.pathname}`).toBe('https://mail.google.com/mail/')
+    expect(Object.fromEntries(gmail.searchParams)).toEqual({
+      view: 'cm',
+      fs: '1',
+      to: 'support-au@li.me',
+      su: email.subject,
+      body: email.message,
+    })
+    const outlook = new URL(email.outlook)
+    expect(`${outlook.origin}${outlook.pathname}`).toBe('https://outlook.live.com/mail/0/deeplink/compose')
+    expect(Object.fromEntries(outlook.searchParams)).toEqual({
+      to: 'support-au@li.me',
+      subject: email.subject,
+      body: email.message,
+    })
   })
 })
