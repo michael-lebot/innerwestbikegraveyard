@@ -30,7 +30,7 @@ export default async function ListPage() {
           <ViewToggle current="/list" />
         </div>
       </div>
-      <TagList tags={tags} now={now} />
+      <TagList tags={tags} />
     </main>
   )
 }
