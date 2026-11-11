@@ -1,10 +1,10 @@
 'use client'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { byPlace, CROWDED_PIN_PX, DIALOG_TOP_REM, pinLabel, PLACEMENT_ZOOM, type PublicTag } from '@iwb/shared'
+import { byPlace, CROWDED_PIN_PX, DIALOG_TOP_REM, pinLabel, PLACEMENT_ZOOM, stacks, type PublicTag } from '@iwb/shared'
 import council from '@iwb/shared/data/council.json'
 import maplibregl, { type LngLatBoundsLike, type MapMouseEvent } from 'maplibre-gl'
 import { Protocol } from 'pmtiles'
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
+import { type MouseEvent, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { PinIcon } from '@/components/PinIcon'
 import { FOCUS_RING_ON_HOVER } from '@/components/buttons'
@@ -19,6 +19,8 @@ maplibregl.addProtocol('pmtiles', new Protocol().tile)
 const MAX_PINS = 200
 /** A pin's button: 44 px square, with the middle of the headstone's base at the middle of its bottom edge. */
 const PIN_PX = 44
+/** A headstone's width, PinIcon's at its default scale: pins closer than this draw as one blob, so the top one shows how many are under it. */
+const STONE_PX = 28
 /** The picked pin: outlined like keyboard focus, and bobbing twice (§10.5, §13). */
 const SELECTED = 'outline-3 outline-offset-2 outline-focus shadow-[0_0_0_2px_white] motion-safe:animate-bob'
 /** The keyboard crosshair's steps in metres, and with Shift (§10.3). */
@@ -47,7 +49,10 @@ type Props = {
   tags?: PublicTag[]
   now: Date
   selected?: string
-  /** A pin was picked: just that tag, or by tap where pins overlap, every tag within 44 px of it. */
+  /**
+   * A pin was picked: just that tag, or where pins overlap, several: by tap every tag within 44 px of it, by mouse
+   * every tag whose headstone is under the pointer.
+   */
   onPick: (tags: PublicTag[], pin: HTMLElement) => void
   onStatus: (status: 'ready' | 'failed') => void
   /** The new tag's pin, with the middle of its base on this spot. */
@@ -275,6 +280,21 @@ function Pins({
   onPick,
 }: Omit<Props, 'onStatus'> & { map: maplibregl.Map; tags: PublicTag[]; placing: boolean }) {
   const shown = useMemo(() => tags.toSorted(byPlace).slice(0, MAX_PINS), [tags])
+  const [stacked, setStacked] = useState<Map<string, number>>()
+
+  // Stacks only change with the zoom: a pan moves every pin alike.
+  useEffect(() => {
+    const count = () =>
+      setStacked(
+        stacks(
+          shown.map(({ id, lng, lat }) => ({ id, ...map.project([lng, lat]) })),
+          STONE_PX,
+        ),
+      )
+    count()
+    map.on('zoomend', count)
+    return () => void map.off('zoomend', count)
+  }, [map, shown])
 
   // Pins that arrive with a refresh are added last: move each after the one before it, so Tab follows the list.
   useEffect(() => {
@@ -286,9 +306,18 @@ function Pins({
     }
   }, [map, shown])
 
-  const pick = (tag: PublicTag, pin: HTMLElement, byKeyboard: boolean) => {
-    // From the keyboard each pin is its own stop, so only a tap can mean several.
-    if (byKeyboard) return onPick([tag], pin)
+  const pick = (tag: PublicTag, pin: HTMLElement, event: MouseEvent) => {
+    // From the keyboard each pin is its own stop. Enter and Space click at detail 0.
+    if (event.detail === 0) return onPick([tag], pin)
+    // A mouse is precise: several only where headstones themselves overlap under it, else the one drawn there.
+    if (matchMedia('(pointer: fine)').matches && (event.nativeEvent as PointerEvent).pointerType !== 'touch') {
+      const stones = document
+        .elementsFromPoint(event.clientX, event.clientY)
+        .flatMap((element) => (element instanceof SVGElement && element.closest<HTMLElement>('[data-tag]')) || [])
+      const under = shown.filter(({ id }) => stones.some((stone) => stone.dataset.tag === id))
+      if (under.length === 1) return onPick(under, stones[0]!.querySelector('button')!)
+      return onPick(under.length ? under : [tag], pin)
+    }
     const at = map.project([tag.lng, tag.lat])
     onPick(
       shown.filter((other) => map.project([other.lng, other.lat]).dist(at) < CROWDED_PIN_PX),
@@ -302,6 +331,7 @@ function Pins({
       map={map}
       tag={tag}
       label={pinLabel(tag, now)}
+      stack={stacked?.get(tag.id)}
       selected={tag.id === selected}
       placing={placing}
       onPick={pick}
@@ -313,6 +343,7 @@ function Pin({
   map,
   tag,
   label,
+  stack,
   selected,
   placing,
   onPick,
@@ -320,10 +351,12 @@ function Pin({
   map: maplibregl.Map
   tag: PublicTag
   label: string
+  /** How many pins this one tops, where they overlap. */
+  stack?: number
   selected: boolean
   /** While a new pin is placed, Tab skips the pins: past each one it would pan the map, between the bar and the map. */
   placing: boolean
-  onPick: (tag: PublicTag, pin: HTMLElement, byKeyboard: boolean) => void
+  onPick: (tag: PublicTag, pin: HTMLElement, event: MouseEvent) => void
 }) {
   const [element] = useState(() => {
     const div = document.createElement('div')
@@ -339,20 +372,33 @@ function Pin({
     return () => void marker.remove()
   }, [map, element, tag.lng, tag.lat])
 
+  // The top of a stack, and its count, sit above the stones under it, and the picked pin above them all.
+  useEffect(() => element.style.setProperty('z-index', selected ? '2' : stack ? '1' : ''), [element, stack, selected])
+
   return createPortal(
-    <button
-      type="button"
-      aria-label={label}
-      aria-expanded={selected}
-      tabIndex={placing ? -1 : undefined}
-      className={`flex size-11 cursor-pointer items-end justify-center ${FOCUS_RING_ON_HOVER} ${selected ? SELECTED : ''}`}
-      // A click from Enter or Space has no pointer position, so detail is 0.
-      onClick={(event) => onPick(tag, event.currentTarget, event.detail === 0)}
-      // Focusing a pin off the edge of the map, as Tab does, brings it into view (§4.1).
-      onFocus={() => !isInView(map, tag.lng, tag.lat) && map.panTo([tag.lng, tag.lat])}
-    >
-      <PinIcon operator={tag.operator} />
-    </button>,
+    <>
+      <button
+        type="button"
+        aria-label={label}
+        aria-expanded={selected}
+        tabIndex={placing ? -1 : undefined}
+        className={`flex size-11 cursor-pointer items-end justify-center ${FOCUS_RING_ON_HOVER} ${selected ? SELECTED : ''}`}
+        onClick={(event) => onPick(tag, event.currentTarget, event)}
+        // Focusing a pin off the edge of the map, as Tab does, brings it into view (§4.1).
+        onFocus={() => !isInView(map, tag.lng, tag.lat) && map.panTo([tag.lng, tag.lat])}
+      >
+        <PinIcon operator={tag.operator} />
+      </button>
+      {/* Decorative, and beside the button so its name stays the tag's alone: each pin is still its own button. */}
+      {stack && (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute top-0 left-7 border border-white bg-night px-1 text-[13px] leading-4 font-bold whitespace-nowrap text-white"
+        >
+          ×{stack}
+        </span>
+      )}
+    </>,
     element,
   )
 }

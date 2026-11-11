@@ -20,3 +20,23 @@ export const nearbyTags = (spot: Point, tags: PublicTag[]) =>
     .filter(({ meters }) => meters <= NEARBY_METERS)
     .toSorted((a, b) => a.meters - b.meters)
     .map(({ tag }) => tag)
+
+/**
+ * Stacks of pins on screen (§4.1): pins closer than `px` apart, and pins chained that way, draw as one blob. Gives the
+ * top pin of each stack of two or more, the one nearest the top of the screen, the stack's size.
+ */
+export function stacks(pins: { id: string; x: number; y: number }[], px: number) {
+  const group = pins.map((_, i) => i)
+  const root = (i: number): number => (group[i] === i ? i : (group[i] = root(group[i]!)))
+  for (let i = 0; i < pins.length; i++)
+    for (let j = i + 1; j < pins.length; j++)
+      if (Math.hypot(pins[i]!.x - pins[j]!.x, pins[i]!.y - pins[j]!.y) < px) group[root(j)] = root(i)
+  const found = new Map<number, { top: (typeof pins)[number]; size: number }>()
+  pins.forEach((pin, i) => {
+    const stack = found.get(root(i))
+    if (!stack) return found.set(root(i), { top: pin, size: 1 })
+    stack.size++
+    if (pin.y < stack.top.y) stack.top = pin
+  })
+  return new Map([...found.values()].filter(({ size }) => size > 1).map(({ top, size }) => [top.id, size]))
+}

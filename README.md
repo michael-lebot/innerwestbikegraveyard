@@ -1,18 +1,18 @@
 # The Inner West E-bike Graveyard
 
-A no-login, 90s-video-game-style map of Sydney's Inner West Council area. Anyone can tag a dumped share bike
-(Lime, Hello, Ario) so it gets seen and collected.
+A simple, interactive map of Sydney's Inner West Council area where anyone can tag a dumped share bike
+(Lime, Hello, Ario). MIT license. 
 
 - Tags expire after 48 hours unless someone marks them **Still there**.
 - Anyone can mark a tag **Removed**, which hides it straight away.
 - **Notify the service provider?** on each tag opens the visitor's own email app with a message to the operator's
   support address, and offers the message to copy. The site itself sends nothing.
-- Photos can be reported. The first report hides a photo straight away and queues it for review. Once a photo has
+- Photos can be reported. The first report hides a photo straight away and queues it for admin review. Once a photo has
   been reviewed and restored, later reports are queued but no longer hide it.
 
 ## Status
 
-Live at [innerwestbikegraveyard.com](https://innerwestbikegraveyard.com). Built with Claude Code; the app itself uses no AI.
+Live at [innerwestbikegraveyard.com](https://innerwestbikegraveyard.com). Built with Claude Code.
 
 ## Stack
 
@@ -48,14 +48,6 @@ pnpm exec playwright install chromium webkit            # once, for the end-to-e
 | `pnpm e2e`       | Playwright and axe on iPhone, Pixel and desktop, against the builds and `iwb_e2e` |
 | `pnpm lhci`      | Lighthouse CI on `/` and `/list`, after `pnpm e2e`                                |
 | `pnpm verify`    | All of the above from `lint` on, in that order                                    |
-
-The hourly job deletes expired photos and stray photo files, removes visitor hashes, counters and salts once their
-retention runs out, and emails Michael a digest of any reports not yet emailed. It runs on Vercel Cron in production.
-Locally, run it with `curl -H "Authorization: Bearer dev-cron-secret" localhost:3000/api/cron/hourly`.
-
-Michael's emails about reported photos go through Resend in production. Without `RESEND_API_KEY`, as in development
-or on Vercel before Resend is set up, the web app prints each one to its console instead (on Vercel, the function
-log).
 
 Photos go to a private Vercel Blob store in production. Without `BLOB_READ_WRITE_TOKEN`, as in development, they are
 files in `.data/blob/` (git-ignored), or wherever `LOCAL_BLOB_DIR` says (relative to each app's folder); the tests

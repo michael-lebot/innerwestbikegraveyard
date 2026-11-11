@@ -1,17 +1,29 @@
 import { readFileSync } from 'node:fs'
 import { expect, type Page, test } from '@playwright/test'
-import { expectNoAxeViolations, resetDb, sql } from './support'
+import { expectNoAxeViolations, resetDb, siteLinks, sql, tap } from './support'
 
+const NORTON_ST = '5eed0000-0000-4000-8000-000000000001'
 const MARION_ST = '5eed0000-0000-4000-8000-000000000002'
 const LLEWELLYN_ST = '5eed0000-0000-4000-8000-000000000003'
 
 /**
- * Zooms in a step, at once. An iPhone's map, short under the footer, draws pins over a kilometre apart within 44 px of
+ * Zooms in a step, at once. An iPhone's map, short under the sheet, draws pins over a kilometre apart within 44 px of
  * each other at the council-wide zoom, so a tap there opens a chooser; a step in, only Norton and Marion St overlap.
  */
 async function zoomIn(page: Page) {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.getByRole('button', { name: 'Zoom in' }).click()
+}
+
+/**
+ * Clicks between Norton and Marion St's headstones, to open "2 bikes here": by tap after zoomIn, and by mouse at the
+ * council-wide zoom, where the headstones themselves overlap.
+ */
+async function clickNortonAndMarion(page: Page, isMobile: boolean) {
+  const [a, b] = await Promise.all(
+    [/Norton St/, /Marion St/].map((name) => page.getByRole('button', { name }).locator('svg').boundingBox()),
+  )
+  await tap(page, isMobile, { x: (a!.x + b!.x + a!.width) / 2, y: (a!.y + b!.y + a!.height) / 2 })
 }
 
 test.beforeEach(() => resetDb())
@@ -151,7 +163,7 @@ test('leaves the map for another page without a script error', async ({ page }) 
   page.on('pageerror', (error) => errors.push(error.message))
   await page.goto('/')
   await expect(page.locator('[data-map-ready]')).toBeAttached()
-  await page.getByRole('contentinfo').getByRole('link', { name: 'Why this page exists' }).click()
+  await (await siteLinks(page)).getByRole('link', { name: 'Why this page exists' }).click()
   await expect(page).toHaveURL('/why')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   expect(errors).toEqual([])
@@ -238,7 +250,7 @@ test('keeps every map control in sight and the count above the fold at twice the
   const count = (await page.getByRole('heading', { name: '14 bikes in the graveyard' }).boundingBox())!
   expect(count.y + count.height).toBeLessThanOrEqual(sheet.y + sheet.height)
   // The name wraps beside the headstone, which keeps its size.
-  expect((await page.locator('header svg').boundingBox())!.width).toBe(24)
+  expect((await page.locator('header > svg').boundingBox())!.width).toBe(24)
 })
 
 test.describe('pins', () => {
@@ -289,11 +301,37 @@ test.describe('pins', () => {
     expect(await ashfield.evaluate((pin) => getComputedStyle(pin).animationName)).toBe('none')
   })
 
-  test('tapped where they overlap, offer "2 bikes here" to choose from', async ({ page }) => {
+  test('show how many overlap on the top one, until zoomed apart', async ({ page }) => {
+    // Norton St is north of Marion St, so its pin is the top of their stack.
+    const stack = page.locator(`[data-tag="${NORTON_ST}"]`)
+    await expect(stack).toContainText('×2')
+    await expect(page.locator(`[data-tag="${MARION_ST}"]`)).not.toContainText('×')
+    // The count is drawn, not read: the pin's name is unchanged.
+    await expect(stack.getByRole('button')).toHaveAccessibleName(/^Lime e-bike, knocked over, Norton St, Leichhardt,/)
+    await expectNoAxeViolations(page)
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Zoom in' }).click()
+    await expect(stack).not.toContainText('×')
+  })
+
+  test('by mouse, select the headstone under the pointer where pins are close but apart', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, 'a mouse')
     await zoomIn(page)
-    const norton = page.getByRole('button', { name: /Norton St, Leichhardt/ })
-    // Marion St's pin covers part of Norton St's: the tap lands on whichever is on top.
-    await norton.click({ force: true })
+    // Within 44 px, which by tap opens a chooser, but the headstones don't touch. Forced: the other's button may be on top.
+    for (const name of [/King St, Newtown/, /Denison St, Newtown/]) {
+      const pin = page.getByRole('button', { name })
+      await pin.locator('svg').click({ force: true })
+      await expect(pin).toHaveAttribute('aria-expanded', 'true')
+      await expect(page.getByRole('heading', { name: /bikes here/ })).toHaveCount(0)
+    }
+  })
+
+  test('clicked where they overlap, offer "2 bikes here" to choose from', async ({ page, isMobile }) => {
+    if (isMobile) await zoomIn(page)
+    await clickNortonAndMarion(page, isMobile)
     const chooser = page.getByRole('heading', { name: '2 bikes here' })
     await expect(chooser).toBeFocused()
     await expectNoAxeViolations(page)
@@ -302,13 +340,13 @@ test.describe('pins', () => {
     expect(await page.evaluate(() => document.activeElement?.ariaLabel)).toMatch(/Leichhardt/)
 
     // Not a dialog either: Esc closes it with focus back on the map.
-    await norton.click({ force: true })
+    await clickNortonAndMarion(page, isMobile)
     await page.getByRole('button', { name: 'Zoom in' }).focus()
     await page.keyboard.press('Escape')
     await expect(chooser).toHaveCount(0)
     expect(await page.evaluate(() => document.activeElement?.ariaLabel)).toMatch(/Leichhardt/)
 
-    await norton.click({ force: true })
+    await clickNortonAndMarion(page, isMobile)
     await page.getByRole('link', { name: /Marion St/ }).click()
     await expect(chooser).toHaveCount(0)
     await expect(page.getByRole('button', { name: /Marion St, Leichhardt/ })).toHaveAttribute('aria-expanded', 'true')
@@ -398,9 +436,9 @@ test.describe('the tag card', () => {
       expect((await page.getByRole('button', { name: 'Shrink card' }).boundingBox())!.height).toBeGreaterThanOrEqual(44)
   })
 
-  test('opens from a chooser that a refresh has trimmed', async ({ page }) => {
-    await zoomIn(page)
-    await page.getByRole('button', { name: /Norton St, Leichhardt/ }).click({ force: true })
+  test('opens from a chooser that a refresh has trimmed', async ({ page, isMobile }) => {
+    if (isMobile) await zoomIn(page)
+    await clickNortonAndMarion(page, isMobile)
     await expect(page.getByRole('heading', { name: '2 bikes here' })).toBeVisible()
     await sql(`UPDATE tags SET expires_at = now() WHERE id = '${MARION_ST}'`)
     await page.evaluate(() => window.dispatchEvent(new Event('focus')))
@@ -418,7 +456,7 @@ test.describe('the tag card', () => {
       await page.getByRole('button', { name: /Liverpool Rd, Ashfield/ }).press('Enter')
       const sheet = page.locator('#sheet')
       const viewport = page.viewportSize()!
-      // Half the room between the header and the footer, or more where the map is down to its minimum.
+      // Half the room between the header and the foot of the screen, or more where the map is down to its minimum.
       const map = (await page.getByRole('region', { name: 'Map', exact: true }).boundingBox())!
       expect((await sheet.boundingBox())!.height).toBeGreaterThanOrEqual(map.height)
 
