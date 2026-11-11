@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { expect, type Page, test } from '@playwright/test'
 import { expectNoAxeViolations, resetDb, sql } from './support'
 
+const NORTON_ST = '5eed0000-0000-4000-8000-000000000001'
 const MARION_ST = '5eed0000-0000-4000-8000-000000000002'
 const LLEWELLYN_ST = '5eed0000-0000-4000-8000-000000000003'
 
@@ -287,6 +288,19 @@ test.describe('pins', () => {
     expect(await ashfield.evaluate((pin) => getComputedStyle(pin).animationIterationCount)).toBe('2')
     await page.emulateMedia({ reducedMotion: 'reduce' })
     expect(await ashfield.evaluate((pin) => getComputedStyle(pin).animationName)).toBe('none')
+  })
+
+  test('show how many overlap on the top one, until zoomed apart', async ({ page }) => {
+    // Norton St is north of Marion St, so its pin is the top of their stack.
+    const stack = page.locator(`[data-tag="${NORTON_ST}"]`)
+    await expect(stack).toContainText('×2')
+    await expect(page.locator(`[data-tag="${MARION_ST}"]`)).not.toContainText('×')
+    // The count is drawn, not read: the pin's name is unchanged.
+    await expect(stack.getByRole('button')).toHaveAccessibleName(/^Lime e-bike, knocked over, Norton St, Leichhardt,/)
+    await expectNoAxeViolations(page)
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Zoom in' }).click()
+    await expect(stack).not.toContainText('×')
   })
 
   test('tapped where they overlap, offer "2 bikes here" to choose from', async ({ page }) => {
