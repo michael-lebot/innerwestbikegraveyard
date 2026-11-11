@@ -1,5 +1,5 @@
-import { expect, type Page, test } from '@playwright/test'
-import { expectNoAxeViolations, menu, menuButton, resetDb, siteLinks } from './support'
+import { expect, type Locator, type Page, test } from '@playwright/test'
+import { expectNoAxeViolations, menu, menuButton, openSiteLink, resetDb, siteLinks } from './support'
 
 const LLEWELLYN_ST = '5eed0000-0000-4000-8000-000000000003'
 const ADDRESS = 'hello@innerwestbikegraveyard.com'
@@ -14,6 +14,18 @@ const box = async (page: Page, name: string) => (await page.getByRole('button', 
 const bike = (page: Page) => page.getByRole('region', { name: 'Map' }).getByRole('status').locator('svg > g')
 /** Keeps the map loading, and its bike on screen, for up to its 15 s. */
 const holdMap = (page: Page) => page.route('**/*.pmtiles', () => {})
+
+/** The pages and the source code, each opening in a new tab, on the page at `path`. */
+async function expectSiteLinks(links: Locator, path: string) {
+  for (const name of ['Why this page exists', 'Privacy', 'Accessibility', 'Terms'])
+    await expect(links.getByRole('link', { name: `${name} (opens in a new tab)`, exact: true }), path).toHaveAttribute(
+      'target',
+      '_blank',
+    )
+  const source = links.getByRole('link', { name: 'Source code on GitHub (opens in a new tab)', exact: true })
+  await expect(source, path).toHaveAttribute('href', REPO)
+  await expect(source, path).toHaveAttribute('target', '_blank')
+}
 
 test.beforeEach(() => resetDb())
 
@@ -30,14 +42,7 @@ test('stays at the foot of the screen on every page, covering none of the page',
       const main = (await page.getByRole('main').boundingBox())!
       if (scrolled) expect(main.y + main.height, path).toBeLessThanOrEqual(foot.y + 1)
     }
-    for (const name of ['Why this page exists', 'Privacy', 'Accessibility', 'Terms'])
-      await expect(
-        footer(page).getByRole('link', { name: `${name} (opens in a new tab)`, exact: true }),
-        path,
-      ).toHaveAttribute('target', '_blank')
-    const source = footer(page).getByRole('link', { name: 'Source code on GitHub (opens in a new tab)', exact: true })
-    await expect(source, path).toHaveAttribute('href', REPO)
-    await expect(source, path).toHaveAttribute('target', '_blank')
+    await expectSiteLinks(footer(page), path)
     await expect(await toggle(page), path).toBeVisible()
     await expect(menuButton(page), path).toBeHidden()
   }
@@ -51,15 +56,7 @@ test.describe('on a phone held upright', () => {
     for (const path of [...PAGES, '/nope', '/tag/not-a-uuid']) {
       await page.goto(path)
       await expect(footer(page), path).toBeHidden()
-      const links = await siteLinks(page)
-      for (const name of ['Why this page exists', 'Privacy', 'Accessibility', 'Terms'])
-        await expect(
-          links.getByRole('link', { name: `${name} (opens in a new tab)`, exact: true }),
-          path,
-        ).toHaveAttribute('target', '_blank')
-      const source = links.getByRole('link', { name: 'Source code on GitHub (opens in a new tab)', exact: true })
-      await expect(source, path).toHaveAttribute('href', REPO)
-      await expect(source, path).toHaveAttribute('target', '_blank')
+      await expectSiteLinks(await siteLinks(page), path)
       await expect(await toggle(page), path).toBeVisible()
     }
     await expectNoAxeViolations(page)
@@ -310,10 +307,6 @@ test.describe('without JavaScript', () => {
     const links = await siteLinks(page)
     await expect(links.getByRole('link', { name: /^Feedback/ })).toBeVisible()
     await expect(links.getByRole('button', { name: 'Reduce motion' })).toHaveCount(0)
-    const [privacy] = await Promise.all([
-      page.waitForEvent('popup'),
-      links.getByRole('link', { name: 'Privacy' }).click(),
-    ])
-    await expect(privacy).toHaveURL('/privacy')
+    await expect(await openSiteLink(page, 'Privacy')).toHaveURL('/privacy')
   })
 })
