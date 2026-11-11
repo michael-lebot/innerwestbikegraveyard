@@ -31,8 +31,13 @@ test('stays at the foot of the screen on every page, covering none of the page',
       if (scrolled) expect(main.y + main.height, path).toBeLessThanOrEqual(foot.y + 1)
     }
     for (const name of ['Why this page exists', 'Privacy', 'Accessibility', 'Terms'])
-      await expect(footer(page).getByRole('link', { name, exact: true }), path).toBeVisible()
-    await expect(footer(page).getByRole('link', { name: 'Source code on GitHub' }), path).toHaveAttribute('href', REPO)
+      await expect(
+        footer(page).getByRole('link', { name: `${name} (opens in a new tab)`, exact: true }),
+        path,
+      ).toHaveAttribute('target', '_blank')
+    const source = footer(page).getByRole('link', { name: 'Source code on GitHub (opens in a new tab)', exact: true })
+    await expect(source, path).toHaveAttribute('href', REPO)
+    await expect(source, path).toHaveAttribute('target', '_blank')
     await expect(await toggle(page), path).toBeVisible()
     await expect(menuButton(page), path).toBeHidden()
   }
@@ -48,8 +53,13 @@ test.describe('on a phone held upright', () => {
       await expect(footer(page), path).toBeHidden()
       const links = await siteLinks(page)
       for (const name of ['Why this page exists', 'Privacy', 'Accessibility', 'Terms'])
-        await expect(links.getByRole('link', { name, exact: true }), path).toBeVisible()
-      await expect(links.getByRole('link', { name: 'Source code on GitHub' }), path).toHaveAttribute('href', REPO)
+        await expect(
+          links.getByRole('link', { name: `${name} (opens in a new tab)`, exact: true }),
+          path,
+        ).toHaveAttribute('target', '_blank')
+      const source = links.getByRole('link', { name: 'Source code on GitHub (opens in a new tab)', exact: true })
+      await expect(source, path).toHaveAttribute('href', REPO)
+      await expect(source, path).toHaveAttribute('target', '_blank')
       await expect(await toggle(page), path).toBeVisible()
     }
     await expectNoAxeViolations(page)
@@ -82,10 +92,14 @@ test.describe('on a phone held upright', () => {
     await page.mouse.click(200, page.viewportSize()!.height - 20)
     await expect(menu(page)).toBeHidden()
 
-    // A page picked from it opens with the menu closed.
+    // A page picked from it opens in a new tab, and the menu here closes.
     await button.click()
-    await menu(page).getByRole('link', { name: 'Privacy' }).click()
-    await expect(page).toHaveURL('/privacy')
+    const [privacy] = await Promise.all([
+      page.waitForEvent('popup'),
+      menu(page).getByRole('link', { name: 'Privacy' }).click(),
+    ])
+    await expect(privacy).toHaveURL('/privacy')
+    await expect(page).toHaveURL('/')
     await expect(menu(page)).toBeHidden()
     await expect(button).toHaveAttribute('aria-expanded', 'false')
   })
@@ -296,7 +310,10 @@ test.describe('without JavaScript', () => {
     const links = await siteLinks(page)
     await expect(links.getByRole('link', { name: /^Feedback/ })).toBeVisible()
     await expect(links.getByRole('button', { name: 'Reduce motion' })).toHaveCount(0)
-    await links.getByRole('link', { name: 'Privacy' }).click()
-    await expect(page).toHaveURL('/privacy')
+    const [privacy] = await Promise.all([
+      page.waitForEvent('popup'),
+      links.getByRole('link', { name: 'Privacy' }).click(),
+    ])
+    await expect(privacy).toHaveURL('/privacy')
   })
 })

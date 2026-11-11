@@ -26,8 +26,14 @@ test.describe('Notify the service provider?', () => {
     await cta(page).click()
     await expect(emailLink(page)).toHaveAttribute('href', HREF)
     await expect(
-      page.getByText('Opens your own email app, addressed to support-au@li.me. This site sends nothing.'),
+      page.getByText('Email opens your own email app, addressed to support-au@li.me. This site sends nothing.'),
     ).toBeVisible()
+    // Gmail and Outlook.com, for a device with no email app, are there from the start, right under Email.
+    const email = (await emailLink(page).boundingBox())!
+    const gmail = (await page.getByRole('link', { name: /^Write it in Gmail/ }).boundingBox())!
+    const outlook = (await page.getByRole('link', { name: /^Write it in Outlook.com/ }).boundingBox())!
+    expect(email.y < gmail.y && gmail.y < outlook.y).toBe(true)
+    expect([gmail.x, gmail.width, outlook.width]).toEqual([email.x, email.width, email.width])
     await expect(message(page)).toHaveValue(MESSAGE)
     await expect(message(page)).not.toBeEditable()
     // It comes after the questions the page is for, so they keep their place at the top.
@@ -57,7 +63,7 @@ test.describe('Notify the service provider?', () => {
     await expect(page.getByRole('main').getByText(refused)).toBeVisible()
   })
 
-  test('says, on every click, how to send it without an email app: the address to copy, Gmail and Outlook.com', async ({
+  test('says, on every click, how to send it without an email app: Gmail, Outlook.com or the address to copy', async ({
     page,
     context,
     browserName,
@@ -71,8 +77,8 @@ test.describe('Notify the service provider?', () => {
     await emailLink(page).focus()
     await page.keyboard.press('Enter')
     const opening =
-      'Opening your email app. If nothing opens, copy the address and the message below, or write the email in ' +
-      'Gmail or Outlook.com.'
+      'Opening your email app. If nothing opens, write it in Gmail or Outlook.com, or copy the address and the message ' +
+      'below.'
     await expect(page.getByRole('main').getByText(opening)).toBeVisible()
     await expect(page.locator('#announcer')).toHaveText(opening)
     await expect(emailLink(page)).toBeFocused()

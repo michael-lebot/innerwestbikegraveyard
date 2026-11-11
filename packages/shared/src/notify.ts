@@ -11,6 +11,7 @@ const SAYS: Record<Problem, string> = {
   in_waterway: 'in a waterway',
   in_park: 'left in a park or reserve',
   damaged: 'that is damaged',
+  abandoned: 'abandoned',
 }
 
 /**

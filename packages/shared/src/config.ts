@@ -20,6 +20,7 @@ export const PROBLEMS = {
   in_waterway: 'In waterway',
   in_park: 'In park or reserve',
   damaged: 'Damaged',
+  abandoned: 'Abandoned',
 } as const
 export type Problem = keyof typeof PROBLEMS
 

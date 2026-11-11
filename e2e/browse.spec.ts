@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { expect, type Page, test } from '@playwright/test'
-import { expectNoAxeViolations, resetDb, siteLinks, sql, tap } from './support'
+import { expectNoAxeViolations, resetDb, sql, tap } from './support'
 
 const NORTON_ST = '5eed0000-0000-4000-8000-000000000001'
 const MARION_ST = '5eed0000-0000-4000-8000-000000000002'
@@ -23,7 +23,10 @@ async function clickNortonAndMarion(page: Page, isMobile: boolean) {
   const [a, b] = await Promise.all(
     [/Norton St/, /Marion St/].map((name) => page.getByRole('button', { name }).locator('svg').boundingBox()),
   )
+  // MapLibre reads a second tap or click at the same spot within 500 ms as a double tap, and zooms in instead.
+  await page.waitForTimeout(500)
   await tap(page, isMobile, { x: (a!.x + b!.x + a!.width) / 2, y: (a!.y + b!.y + a!.height) / 2 })
+  await expect(page.getByRole('heading', { name: '2 bikes here' })).toBeFocused()
 }
 
 test.beforeEach(() => resetDb())
@@ -163,8 +166,11 @@ test('leaves the map for another page without a script error', async ({ page }) 
   page.on('pageerror', (error) => errors.push(error.message))
   await page.goto('/')
   await expect(page.locator('[data-map-ready]')).toBeAttached()
-  await (await siteLinks(page)).getByRole('link', { name: 'Why this page exists' }).click()
-  await expect(page).toHaveURL('/why')
+  // By a link that stays in this tab: List on a phone, or a row of the desktop's side panel. The site links open new tabs.
+  const list = page.getByRole('navigation', { name: 'View' }).getByRole('link', { name: 'List' })
+  if (await list.isVisible()) await list.click()
+  else await page.locator('#sheet').getByRole('link').first().click()
+  await expect(page).not.toHaveURL('/')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   expect(errors).toEqual([])
 })
@@ -264,11 +270,17 @@ test.describe('pins', () => {
 
   test('are one 44 px button per live tag, named in full, in suburb then street order', async ({ page }) => {
     await expect(pins(page)).toHaveCount(14)
-    // axe spares the pins from target-size because they may overlap, so their size is checked here (§10.5).
+    // axe spares the pins from target-size because they may overlap, so their size is checked here (§10.5): the button
+    // is the headstone, so its outline hugs it, and a box around it takes taps.
     const sides = await pins(page).evaluateAll((buttons) =>
-      buttons.flatMap((button) => [button.getBoundingClientRect().width, button.getBoundingClientRect().height]),
+      buttons.flatMap((button) => {
+        const area = getComputedStyle(button, '::before')
+        return [parseFloat(area.width), parseFloat(area.height)]
+      }),
     )
     expect(Math.min(...sides)).toBeGreaterThanOrEqual(44)
+    const stone = (await pins(page).first().boundingBox())!
+    expect([stone.width, stone.height]).toEqual([28, 30])
     const names = await pins(page).evaluateAll((buttons) => buttons.map((button) => button.ariaLabel ?? ''))
     expect(names[0]).toMatch(
       /^Hello e-bike, blocking footpath, Liverpool Rd, Ashfield, disappears in 1 hour, at \d{1,2}:\d\d [ap]m \w+day$/,
@@ -333,7 +345,6 @@ test.describe('pins', () => {
     if (isMobile) await zoomIn(page)
     await clickNortonAndMarion(page, isMobile)
     const chooser = page.getByRole('heading', { name: '2 bikes here' })
-    await expect(chooser).toBeFocused()
     await expectNoAxeViolations(page)
     await page.keyboard.press('Escape')
     await expect(chooser).toHaveCount(0)
