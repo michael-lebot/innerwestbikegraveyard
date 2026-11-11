@@ -388,7 +388,8 @@ test.describe('Still there and Removed', () => {
     await page.goto('/list')
     await row(page, 'Llewellyn St').getByRole('button', { name: 'Still there' }).click()
     await expect(page.locator('#announcer')).toHaveText('Marked still there')
-    await expect(row(page, 'Llewellyn St').getByRole('link')).toContainText(`${RESTARTED} left`)
+    // The row names the bike, not its time: that is on the tag's page.
+    await expect(row(page, 'Llewellyn St').getByRole('link')).not.toContainText('left')
     // Every row has Still there, so none of theirs is the screen's one green button: Tag a dumped bike is.
     expect(await greenButtons(page)).toBe(1)
     await expectNoAxeViolations(page)
