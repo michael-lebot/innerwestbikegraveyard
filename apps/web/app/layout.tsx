@@ -20,8 +20,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     // The script below puts the visitor's Reduce motion choice on <html> before React hydrates it. The scroll padding
-    // keeps whatever has the focus clear of the pinned footer, which is never taller than 20dvh (Footer.tsx).
-    <html lang="en-AU" suppressHydrationWarning className="scroll-pb-[20dvh]">
+    // keeps whatever has the focus clear of the wide layout's pinned footer, never taller than 20dvh (Footer.tsx).
+    <html lang="en-AU" suppressHydrationWarning className="wide:scroll-pb-[20dvh]">
       <head>
         <link
           rel="preload"
