@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { expectNoAxeViolations, resetDb, siteLinks, sql } from './support'
+import { expectNoAxeViolations, openSiteLink, resetDb, siteLinks, sql } from './support'
 
 const LLEWELLYN_ST = '5eed0000-0000-4000-8000-000000000003'
 
@@ -122,8 +122,7 @@ test.describe('the list', () => {
     await page.getByRole('link', { name: /Llewellyn St/ }).click()
     await expect(page).toHaveURL(`/tag/${LLEWELLYN_ST}`)
     await page.goBack()
-    await (await siteLinks(page)).getByRole('link', { name: 'Privacy' }).click()
-    await expect(page).toHaveURL('/privacy')
+    await expect(await openSiteLink(page, 'Privacy')).toHaveURL('/privacy')
   })
 
   test('makes every link at least 44 × 44 px', async ({ page }) => {
@@ -214,9 +213,7 @@ test('the text pages each have one h1 and headings in order, and pass axe', asyn
     await expectNoAxeViolations(page)
   }
   await page.goto('/why')
-  await expect(page.getByRole('main')).toContainText(
-    'This site exists to illustrate to our council the scale of the problem',
-  )
+  await expect(page.getByRole('main')).toContainText("I'm a resident of Enmore. I love the Inner West.")
 })
 
 test('an unknown address is a 404', async ({ page }) => {

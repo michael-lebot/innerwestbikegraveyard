@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
-import { addPhoto, chip, expectNoAxeViolations, openFormOnList, resetDb, siteLinks, sql, undoInAdmin } from './support'
+import { addPhoto, chip, expectNoAxeViolations, openFormOnList, resetDb, sql, undoInAdmin } from './support'
 
 test.beforeEach(() => resetDb())
 test.use({ reducedMotion: 'reduce' })
@@ -140,8 +140,8 @@ test('a photo restored after it was reported shows again on a page left and come
   await admin.close()
 
   // Away and back inside the site, so the page's code stays loaded.
-  await (await siteLinks(page)).getByRole('link', { name: 'Terms' }).click()
-  await expect(page).toHaveURL('/terms')
+  await page.getByRole('banner').getByRole('link', { name: 'The Inner West E-bike Graveyard' }).click()
+  await expect(page).toHaveURL('/')
   await page.goBack()
   await thumbnailLoaded(page)
   await expect(reportLink(page)).toBeVisible()

@@ -8,7 +8,8 @@ import { SECONDARY, SMALL } from './buttons'
  * "Notify the service provider?" (§4.2): a disclosure, so it opens without JavaScript, holding a link that opens the
  * visitor's own email app with the email to the tag's operator written, and the message to copy. The site sends
  * nothing. A "Not sure" tag has no one to write to, so it shows nothing. A device with no email app does nothing
- * with the link, and the browser can't tell, so every click also shows the address to copy and Gmail and Outlook.com.
+ * with the link, and the browser can't tell, so Gmail and Outlook.com sit right under it, and every click also says
+ * so and shows the address to copy.
  */
 export function NotifyOperator({ tag, origin }: { tag: PublicTag; origin: string }) {
   const [clicked, setClicked] = useState(false)
@@ -27,6 +28,8 @@ export function NotifyOperator({ tag, origin }: { tag: PublicTag; origin: string
         <a href={email.href} className={SECONDARY} onClick={opening}>
           Email {OPERATORS[tag.operator].label}
         </a>
+        <ComposeLink href={email.gmail}>Write it in Gmail</ComposeLink>
+        <ComposeLink href={email.outlook}>Write it in Outlook.com</ComposeLink>
         {clicked ? (
           <div className="flex flex-col gap-1 text-sm">
             <p>{OPENING}</p>
@@ -35,16 +38,12 @@ export function NotifyOperator({ tag, origin }: { tag: PublicTag; origin: string
               <span className="whitespace-nowrap font-bold">{email.to}</span>
               <CopyButton text={email.to} what="address" />
             </p>
-            <p className="flex flex-wrap gap-x-4">
-              <ComposeLink href={email.gmail}>Write it in Gmail</ComposeLink>
-              <ComposeLink href={email.outlook}>Write it in Outlook.com</ComposeLink>
-            </p>
           </div>
         ) : (
           <p className="text-sm text-muted">
             {/* The address never breaks at its hyphen, which would leave half of it on each line. */}
-            Opens your own email app, addressed to <span className="whitespace-nowrap">{email.to}</span>. This site
-            sends nothing.
+            Email opens your own email app, addressed to <span className="whitespace-nowrap">{email.to}</span>. This
+            site sends nothing.
           </p>
         )}
         <label htmlFor={`message-${tag.id}`} className="mt-2 font-bold">
@@ -68,8 +67,8 @@ export function NotifyOperator({ tag, origin }: { tag: PublicTag; origin: string
 }
 
 const OPENING =
-  'Opening your email app. If nothing opens, copy the address and the message below, or write the email in Gmail or ' +
-  'Outlook.com.'
+  'Opening your email app. If nothing opens, write it in Gmail or Outlook.com, or copy the address and the message ' +
+  'below.'
 
 /** A button that copies `text`, the `what`, and says whether it did, beside it and aloud. */
 function CopyButton({ text, what }: { text: string; what: string }) {
@@ -97,12 +96,7 @@ function CopyButton({ text, what }: { text: string; what: string }) {
 /** A web email's compose page, filled in, in a new tab so this page keeps its place. */
 function ComposeLink({ href, children }: { href: string; children: string }) {
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener"
-      className="inline-flex min-h-11 items-center underline underline-offset-2"
-    >
+    <a href={href} target="_blank" rel="noopener" className={SECONDARY}>
       {children}
       <span className="sr-only"> (opens in a new tab)</span>
     </a>

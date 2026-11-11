@@ -47,6 +47,7 @@ describe('operatorEmail', () => {
     ['in_waterway', 'a Lime e-bike in a waterway near'],
     ['in_park', 'a Lime e-bike left in a park or reserve near'],
     ['damaged', 'a Lime e-bike that is damaged near'],
+    ['abandoned', 'a Lime e-bike abandoned near'],
   ] satisfies [Problem, string][])('says %s in words of its own', (problem, words) => {
     const email = operatorEmail({ ...tag, problem }, ORIGIN)!
     expect(email.message).toContain(`there is ${words} Llewellyn St, Marrickville.`)

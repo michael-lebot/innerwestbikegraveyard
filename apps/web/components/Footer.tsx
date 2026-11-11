@@ -1,5 +1,4 @@
 import { FEEDBACK_EMAIL, REPO_URL } from '@iwb/shared'
-import Link from 'next/link'
 import { MotionToggle } from './MotionToggle'
 
 const PAGES = [
@@ -19,13 +18,15 @@ export function SiteLinks() {
       <a href={`mailto:${FEEDBACK_EMAIL}`} aria-label={`Feedback: ${FEEDBACK_EMAIL}`} className={LINK}>
         Feedback<span className="hidden lg:inline">: {FEEDBACK_EMAIL}</span>
       </a>
+      {/* In a new tab, so the map and a tag being added stay as they were. Feedback opens the email app, not a page. */}
       {PAGES.map(({ href, label }) => (
-        <Link key={href} href={href} className={LINK}>
+        <a key={href} href={href} target="_blank" rel="noopener" className={LINK}>
           {label}
-        </Link>
+          <span className="sr-only"> (opens in a new tab)</span>
+        </a>
       ))}
-      <a href={REPO_URL} aria-label="Source code on GitHub" className={LINK}>
-        Source code
+      <a href={REPO_URL} target="_blank" rel="noopener" className={LINK}>
+        Source code<span className="sr-only"> on GitHub (opens in a new tab)</span>
       </a>
       <MotionToggle />
     </>

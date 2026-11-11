@@ -17,7 +17,10 @@ maplibregl.addProtocol('pmtiles', new Protocol().tile)
 
 /** shortcut: HTML markers, switch to a clustered symbol layer plus the list if live tags pass 200 (§11.3). */
 const MAX_PINS = 200
-/** A pin's button: 44 px square, with the middle of the headstone's base at the middle of its bottom edge. */
+/**
+ * A pin's tap area: 44 px square, with the middle of the headstone's base at the middle of its bottom edge. The button
+ * itself is the headstone's size, so its outline hugs the stone, and a box around it takes the taps.
+ */
 const PIN_PX = 44
 /** A headstone's width, PinIcon's at its default scale: pins closer than this draw as one blob, so the top one shows how many are under it. */
 const STONE_PX = 28
@@ -382,7 +385,7 @@ function Pin({
         aria-label={label}
         aria-expanded={selected}
         tabIndex={placing ? -1 : undefined}
-        className={`flex size-11 cursor-pointer items-end justify-center ${FOCUS_RING_ON_HOVER} ${selected ? SELECTED : ''}`}
+        className={`relative flex h-[30px] w-7 cursor-pointer before:absolute before:-inset-x-2 before:-top-3.5 before:bottom-0 ${FOCUS_RING_ON_HOVER} ${selected ? SELECTED : ''}`}
         onClick={(event) => onPick(tag, event.currentTarget, event)}
         // Focusing a pin off the edge of the map, as Tab does, brings it into view (§4.1).
         onFocus={() => !isInView(map, tag.lng, tag.lat) && map.panTo([tag.lng, tag.lat])}
@@ -393,7 +396,7 @@ function Pin({
       {stack && (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute top-0 left-7 border border-white bg-night px-1 text-[13px] leading-4 font-bold whitespace-nowrap text-white"
+          className="pointer-events-none absolute -top-3.5 left-5 border border-white bg-night px-1 text-[13px] leading-4 font-bold whitespace-nowrap text-white"
         >
           ×{stack}
         </span>

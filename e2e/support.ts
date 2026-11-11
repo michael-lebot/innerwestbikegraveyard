@@ -131,5 +131,12 @@ export async function siteLinks(page: Page) {
   return menu(page)
 }
 
+/** Opens the site link named `name`, which opens in a new tab (§4.7), and returns that tab. */
+export async function openSiteLink(page: Page, name: string) {
+  const link = (await siteLinks(page)).getByRole('link', { name })
+  const [tab] = await Promise.all([page.waitForEvent('popup'), link.click()])
+  return tab
+}
+
 export const menuButton = (page: Page) => page.getByRole('banner').getByRole('button', { name: 'Menu' })
 export const menu = (page: Page) => page.getByRole('navigation', { name: 'About this site' })
