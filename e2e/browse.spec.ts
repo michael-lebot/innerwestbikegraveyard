@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { expect, type Page, test } from '@playwright/test'
-import { expectNoAxeViolations, resetDb, sql, tap } from './support'
+import { expectNoAxeViolations, resetDb, siteLinks, sql, tap } from './support'
 
 const MARION_ST = '5eed0000-0000-4000-8000-000000000002'
 const LLEWELLYN_ST = '5eed0000-0000-4000-8000-000000000003'
 
 /**
- * Zooms in a step, at once. An iPhone's map, short under the footer, draws pins over a kilometre apart within 44 px of
+ * Zooms in a step, at once. An iPhone's map, short under the sheet, draws pins over a kilometre apart within 44 px of
  * each other at the council-wide zoom, so a tap there opens a chooser; a step in, only Norton and Marion St overlap.
  */
 async function zoomIn(page: Page) {
@@ -162,7 +162,7 @@ test('leaves the map for another page without a script error', async ({ page }) 
   page.on('pageerror', (error) => errors.push(error.message))
   await page.goto('/')
   await expect(page.locator('[data-map-ready]')).toBeAttached()
-  await page.getByRole('contentinfo').getByRole('link', { name: 'Why this page exists' }).click()
+  await (await siteLinks(page)).getByRole('link', { name: 'Why this page exists' }).click()
   await expect(page).toHaveURL('/why')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   expect(errors).toEqual([])
@@ -249,7 +249,7 @@ test('keeps every map control in sight and the count above the fold at twice the
   const count = (await page.getByRole('heading', { name: '14 bikes in the graveyard' }).boundingBox())!
   expect(count.y + count.height).toBeLessThanOrEqual(sheet.y + sheet.height)
   // The name wraps beside the headstone, which keeps its size.
-  expect((await page.locator('header svg').boundingBox())!.width).toBe(24)
+  expect((await page.locator('header > svg').boundingBox())!.width).toBe(24)
 })
 
 test.describe('pins', () => {
@@ -442,7 +442,7 @@ test.describe('the tag card', () => {
       await page.getByRole('button', { name: /Liverpool Rd, Ashfield/ }).press('Enter')
       const sheet = page.locator('#sheet')
       const viewport = page.viewportSize()!
-      // Half the room between the header and the footer, or more where the map is down to its minimum.
+      // Half the room between the header and the foot of the screen, or more where the map is down to its minimum.
       const map = (await page.getByRole('region', { name: 'Map', exact: true }).boundingBox())!
       expect((await sheet.boundingBox())!.height).toBeGreaterThanOrEqual(map.height)
 
