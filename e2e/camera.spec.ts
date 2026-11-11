@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
-import { bar, chip, expectNoAxeViolations, mapBox, newTagId, resetDb, sql, tap } from './support'
+import { bar, chip, expectNoAxeViolations, mapBox, newTagId, resetDb, sql, startTagging, tap } from './support'
 
 test.beforeEach(() => resetDb())
 test.use({ reducedMotion: 'reduce' })
@@ -57,6 +57,11 @@ test('shows on phones only, as the green button, and not while uploads are pause
     const label = page.locator('label', { hasText: 'Take a photo of a bike' })
     await expect(label).toBeVisible({ visible: isMobile })
     if (isMobile) await expect(label).toHaveCSS('background-color', GREEN)
+    // On /list the two sit side by side on a 390 px phone (§4.3).
+    if (isMobile && path === '/list')
+      expect((await label.boundingBox())!.y).toBe(
+        (await page.getByRole('button', { name: 'Tag a dumped bike' }).boundingBox())!.y,
+      )
     await expect(page.getByRole('button', { name: 'Tag a dumped bike' })).toHaveCSS(
       'background-color',
       isMobile ? 'rgba(0, 0, 0, 0)' : GREEN,
@@ -150,27 +155,73 @@ test.describe('on a phone', () => {
     })
   })
 
-  test('a spot tapped before the location arrives is not replaced by it', async ({ page }) => {
+  test.describe('when the location arrives late', () => {
     // The location arrives only when the test says, and the page says when it stops listening.
-    await page.addInitScript(() => {
-      const late = window as unknown as { arrive: () => void; stopped: boolean }
-      navigator.geolocation.watchPosition = (success) => {
-        late.arrive = () =>
-          success({ coords: { latitude: -33.90512, longitude: 151.17288, accuracy: 15 } } as GeolocationPosition)
-        return 1
-      }
-      navigator.geolocation.clearWatch = () => (late.stopped = true)
-    })
-    await takePhoto(page)
-    await expect(bar(page)).toHaveText(FINDING)
-    const map = await mapBox(page)
-    await tap(page, true, { x: map.x + map.width / 2 - 120, y: map.y + map.height / 2 + 120 })
-    await expect(bar(page)).toHaveText(/^Pin on /)
-    const placed = await bar(page).textContent()
+    test.beforeEach(({ page }) =>
+      page.addInitScript(() => {
+        const late = window as unknown as { arrive: () => void; stopped: boolean }
+        navigator.geolocation.watchPosition = (success) => {
+          late.stopped = false
+          late.arrive = () =>
+            success({ coords: { latitude: -33.90512, longitude: 151.17288, accuracy: 15 } } as GeolocationPosition)
+          return 1
+        }
+        navigator.geolocation.clearWatch = () => (late.stopped = true)
+      }),
+    )
 
-    await page.evaluate(() => (window as unknown as { arrive: () => void }).arrive())
-    await expect.poll(() => page.evaluate(() => (window as unknown as { stopped?: boolean }).stopped)).toBe(true)
-    await expect(bar(page)).toHaveText(placed!)
-    await expect(dialog(page)).toHaveCount(0)
+    /** The page has stopped listening, and then the location arrives anyway. */
+    async function arriveAfterStopping(page: Page) {
+      await expect.poll(() => page.evaluate(() => (window as unknown as { stopped: boolean }).stopped)).toBe(true)
+      await page.evaluate(() => (window as unknown as { arrive: () => void }).arrive())
+    }
+
+    /** A tap away from the live tags, and the bar's line for it. */
+    async function placeSpot(page: Page) {
+      const map = await mapBox(page)
+      await tap(page, true, { x: map.x + map.width / 2 - 120, y: map.y + map.height / 2 + 120 })
+      await expect(bar(page)).toHaveText(/^Pin on /)
+      return (await bar(page).textContent())!
+    }
+
+    test('a spot tapped first is not replaced by it', async ({ page }) => {
+      await takePhoto(page)
+      await expect(bar(page)).toHaveText(FINDING)
+      const placed = await placeSpot(page)
+      await arriveAfterStopping(page)
+      await expect(bar(page)).toHaveText(placed)
+      await expect(dialog(page)).toHaveCount(0)
+    })
+
+    test('a spot tapped while Use my location is finding it is not replaced by it', async ({ page }) => {
+      await startTagging(page)
+      await page.getByRole('button', { name: 'Use my location' }).click()
+      await expect(page.getByRole('button', { name: 'Finding you…' })).toBeVisible()
+      const placed = await placeSpot(page)
+      await arriveAfterStopping(page)
+      await expect(bar(page)).toHaveText(placed)
+      await expect(page.getByRole('button', { name: 'Use my location' })).toBeVisible()
+    })
+
+    test('the street picker, opened first, is left alone', async ({ page }) => {
+      await takePhoto(page, '/list')
+      await expect(bar(page)).toHaveText(FINDING)
+      await page.getByRole('button', { name: 'Choose by street' }).click()
+      await expect(dialog(page).getByRole('heading', { name: 'Choose by street' })).toBeFocused()
+      await expect(bar(page)).not.toHaveText(FINDING)
+      await arriveAfterStopping(page)
+      await expect(dialog(page)).toHaveCount(1)
+      await expect(dialog(page).getByRole('heading', { name: 'Choose by street' })).toBeFocused()
+    })
+
+    test('after Cancel, nothing comes back, and the focus is on the camera input', async ({ page }) => {
+      await takePhoto(page)
+      await expect(bar(page)).toHaveText(FINDING)
+      await page.getByRole('button', { name: 'Cancel' }).click()
+      await expect(camera(page)).toBeFocused()
+      await arriveAfterStopping(page)
+      await expect(page.getByRole('heading', { name: 'Tag a dumped bike' })).toHaveCount(0)
+      await expect(dialog(page)).toHaveCount(0)
+    })
   })
 })

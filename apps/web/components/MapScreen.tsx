@@ -9,7 +9,7 @@ import { PRIMARY, PRIMARY_UNLESS_CAMERA } from './buttons'
 import { CameraButton, FINDING_YOU, locateAfterPhoto } from './CameraButton'
 import { CrowdChooser } from './CrowdChooser'
 import { Legend } from './Legend'
-import type { Located } from './LocateButton'
+import { type Located, useReading } from './LocateButton'
 import { MapLoading } from './MapLoading'
 import { OUTSIDE, Placement, pinOn, type Spot } from './Placement'
 import { TagCard } from './TagCard'
@@ -47,9 +47,11 @@ export function MapScreen() {
   // Where Use my location centres the map.
   const [centre, setCentre] = useState<Located['centre']>()
   const tagButton = useRef<HTMLButtonElement>(null)
-  // The photo from Take a photo of a bike, and its search for the spot, which a spot the visitor sets first ends.
+  // The photo from Take a photo of a bike, which started tagging if there is one.
   const [photo, setPhoto] = useState<Blob>()
-  const photoSearch = useRef<object>(null)
+  const cameraInput = useRef<HTMLInputElement>(null)
+  // Finding where the visitor is. Stopped early, it no longer says it is finding them.
+  const reading = useReading(() => setNote((current) => (current === FINDING_YOU ? undefined : current)))
   const geo = useRef<Promise<Geo>>(null)
 
   // The card and the chooser show the tags as they are now. A refresh that takes away the open tag, or every tag in
@@ -91,7 +93,7 @@ export function MapScreen() {
 
   /** A tap or an arrow key: the pin moves there if it is inside the council or its 20 m strip (§4.1). */
   const place = async (lat: number, lng: number) => {
-    photoSearch.current = null
+    reading.stop()
     const { inside, street, suburb } = (await loadGeo()).where(lat, lng)
     setNote(inside ? undefined : OUTSIDE)
     if (inside) setSpot({ lat, lng, street, suburb })
@@ -107,14 +109,15 @@ export function MapScreen() {
 
   /** Chosen by street, the spot goes straight to the form, with the map behind it centred there (§10.3). */
   const choose = (chosen: Spot) => {
-    photoSearch.current = null
+    reading.stop()
     setSpot(chosen)
     setNote(undefined)
     setTagging('describe')
   }
 
   const endTagging = () => {
-    photoSearch.current = null
+    reading.stop()
+    const opener = photo ? cameraInput : tagButton
     // Rendered now, so the button that started it is there to take the focus back.
     flushSync(() => {
       setTagging(undefined)
@@ -123,17 +126,17 @@ export function MapScreen() {
       setCentre(undefined)
       setPhoto(undefined)
     })
-    tagButton.current?.focus()
+    opener.current?.focus()
   }
 
   /** Take a photo of a bike: placing starts with the photo kept, and goes on to the form if the spot is found (§4.3). */
   const startWithPhoto = async (taken: Blob) => {
-    const search = (photoSearch.current = {})
+    const signal = reading.start()
     setPhoto(taken)
     setNote(FINDING_YOU)
     startTagging()
-    const located = await locateAfterPhoto(true)
-    if (photoSearch.current !== search) return
+    const located = await locateAfterPhoto(true, signal)
+    if (signal.aborted) return
     locate(located)
     announce(located.note)
     if (located.spot) setTagging('describe')
@@ -269,6 +272,7 @@ export function MapScreen() {
             <Placement
               spot={spot}
               note={note}
+              reading={reading}
               onLocate={locate}
               onChoose={choose}
               onUse={() => setTagging('describe')}
@@ -298,7 +302,7 @@ export function MapScreen() {
             </div>
             <Legend tags={tags} />
             {/* On a phone, its own row above the next (§4.3). */}
-            {!uploadsPaused && <CameraButton onPhoto={startWithPhoto} />}
+            {!uploadsPaused && <CameraButton ref={cameraInput} onPhoto={startWithPhoto} />}
             {/* One row where both fit, so the map keeps its height on a phone; they wrap at 320 px or large text. */}
             <div className="flex flex-wrap gap-2">
               <button

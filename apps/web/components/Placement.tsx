@@ -2,7 +2,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { PRIMARY, SECONDARY } from './buttons'
-import { LocateButton, type Located } from './LocateButton'
+import { LocateButton, type Located, type Reading } from './LocateButton'
 
 // Loaded when it opens, out of the JavaScript before the map (§11.1).
 const StreetPicker = lazy(() => import('./StreetPicker').then((module) => ({ default: module.StreetPicker })))
@@ -25,6 +25,7 @@ export function Placement({
   spot,
   note,
   withMap = true,
+  reading,
   onLocate,
   onChoose,
   onUse,
@@ -34,6 +35,8 @@ export function Placement({
   /** Said in place of the spot: why the last try placed no pin, or where Use my location put it. */
   note?: string
   withMap?: boolean
+  /** The screen's location read, which opening the street picker stops. */
+  reading: Reading
   onLocate: (located: Located) => void
   /** A spot chosen by street, which needs no confirming on the map: the form comes next. */
   onChoose: (spot: Spot) => void
@@ -58,8 +61,16 @@ export function Placement({
       </h2>
       <p className="min-h-12">{note ?? (spot ? pinOn(spot) : prompt)}</p>
       <div className="grid grid-cols-2 gap-2">
-        <LocateButton withMap={withMap} onLocate={onLocate} />
-        <button ref={chooseButton} type="button" className={SECONDARY} onClick={() => setChoosing(true)}>
+        <LocateButton withMap={withMap} reading={reading} onLocate={onLocate} />
+        <button
+          ref={chooseButton}
+          type="button"
+          className={SECONDARY}
+          onClick={() => {
+            reading.stop()
+            setChoosing(true)
+          }}
+        >
           Choose by street
         </button>
       </div>

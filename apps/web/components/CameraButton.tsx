@@ -1,6 +1,6 @@
 'use client'
 import { ERRORS } from '@iwb/shared'
-import { type ChangeEvent, useState } from 'react'
+import { type ChangeEvent, type Ref, useState } from 'react'
 import { announce } from './Announcer'
 import { FOCUS_RING_WITHIN, PRIMARY } from './buttons'
 import { ErrorText } from './ErrorText'
@@ -15,9 +15,9 @@ export const FINDING_YOU = 'Got your photo. Finding where you are…'
  * After Take a photo of a bike, where the visitor is (§4.3): said first, then found as Use my location does. When it
  * places no spot, the note says why after "Got your photo."
  */
-export async function locateAfterPhoto(withMap: boolean): Promise<Located> {
+export async function locateAfterPhoto(withMap: boolean, signal: AbortSignal): Promise<Located> {
   announce(FINDING_YOU)
-  const located = await locate(withMap)
+  const located = await locate(withMap, signal)
   return located.spot ? located : { ...located, note: `Got your photo. ${located.note}` }
 }
 
@@ -25,7 +25,16 @@ export async function locateAfterPhoto(withMap: boolean): Promise<Located> {
  * Take a photo of a bike (§4.3): a file input that opens the phone's own camera, shown only where the main pointer is
  * touch, and only with JavaScript. The photo is shrunk here and handed on; a file that isn't a photo is said here.
  */
-export function CameraButton({ className, onPhoto }: { className?: string; onPhoto: (photo: Blob) => void }) {
+export function CameraButton({
+  ref,
+  className,
+  onPhoto,
+}: {
+  /** The input, which takes the focus back when the tagging it started ends. */
+  ref: Ref<HTMLInputElement>
+  className?: string
+  onPhoto: (photo: Blob) => void
+}) {
   const [error, setError] = useState<string>()
 
   const choose = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -48,7 +57,7 @@ export function CameraButton({ className, onPhoto }: { className?: string; onPho
   return (
     <div className={`hidden flex-col gap-2 pointer-coarse:flex noscript:hidden ${className ?? ''}`}>
       <label className={`${PRIMARY} cursor-pointer gap-2 ${FOCUS_RING_WITHIN}`}>
-        <input type="file" accept={PHOTO_TYPES} capture="environment" onChange={choose} className="sr-only" />
+        <input ref={ref} type="file" accept={PHOTO_TYPES} capture="environment" onChange={choose} className="sr-only" />
         <svg
           aria-hidden="true"
           viewBox="0 0 24 24"
