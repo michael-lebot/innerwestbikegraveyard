@@ -1,7 +1,7 @@
 # The Inner West E-bike Graveyard
 
 A simple, interactive map of Sydney's Inner West Council area where anyone can tag a dumped share bike
-(Lime, Hello, Ario). MIT license. 
+(Lime, Hello, Ario). MIT license.
 
 - Tags expire after 48 hours unless someone marks them **Still there**.
 - Anyone can mark a tag **Removed**, which hides it straight away.
