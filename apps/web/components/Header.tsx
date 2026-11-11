@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { SiteLinks } from './Footer'
+import { Menu } from './Menu'
 
 export function Header() {
   return (
@@ -21,6 +23,9 @@ export function Header() {
           The Inner West <span className="whitespace-nowrap">E-bike</span> Graveyard
         </span>
       </Link>
+      <Menu>
+        <SiteLinks />
+      </Menu>
     </header>
   )
 }
