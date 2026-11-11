@@ -239,7 +239,6 @@ test.describe('Reduce motion', () => {
   })
 
   test("reaches the map: its camera moves, a drag's glide and the picked pin", async ({ page, browserName }) => {
-    test.slow(browserName === 'webkit', 'a flick that misses is tried again')
     for (const [os, reduce] of [
       ['no-preference', true],
       ['reduce', false],
@@ -271,23 +270,23 @@ test.describe('Reduce motion', () => {
       if (browserName === 'webkit') {
         const map = (await page.getByRole('region', { name: 'Map', exact: true }).boundingBox())!
         const pinX = () => page.evaluate(() => document.querySelector('[data-tag] button')!.getBoundingClientRect().x)
-        const flick = async () => {
-          await page.mouse.move(map.x + 40, map.y + 60)
-          await page.mouse.down()
-          // A frame apart: MapLibre judges the glide from the moves it drew in the last 160 ms.
-          for (let x = 70; x <= 160; x += 30) {
-            await page.mouse.move(map.x + x, map.y + 60)
-            await page.evaluate(() => new Promise(requestAnimationFrame))
-          }
-          await page.mouse.up()
-          const released = await pinX()
-          await page.waitForTimeout(2500)
-          return Math.abs((await pinX()) - released)
+        await page.mouse.move(map.x + 40, map.y + 60)
+        await page.mouse.down()
+        // A frame apart, except the last move and the release, which MapLibre handles in the same frame. It glides
+        // only if it drew two moves in the 160 ms before it handles the release: releasing a frame later fails once a
+        // slow runner's frames pass 80 ms.
+        for (let x = 70; x <= 160; x += 30) {
+          await page.mouse.move(map.x + x, map.y + 60)
+          if (x < 160) await page.evaluate(() => new Promise(requestAnimationFrame))
         }
-        if (reduce) expect(await flick(), os).toBeLessThan(1)
-        // On a slow CI runner, frames can stretch until fewer than two moves fall in those 160 ms, and the flick
-        // doesn't glide at all, so a flick that misses is tried again. Reduced motion gets one try, and must stay still.
-        else await expect(async () => expect(await flick(), os).toBeGreaterThan(10)).toPass({ timeout: 20_000 })
+        await page.mouse.up()
+        // The frame that draws the last move, so it isn't counted as glide.
+        await page.evaluate(() => new Promise(requestAnimationFrame))
+        const released = await pinX()
+        await page.waitForTimeout(2500)
+        const glide = Math.abs((await pinX()) - released)
+        if (reduce) expect(glide, os).toBeLessThan(1)
+        else expect(glide, os).toBeGreaterThan(10)
       }
 
       const pin = page.getByRole('button', { name: /Liverpool Rd, Ashfield/ })
