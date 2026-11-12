@@ -224,12 +224,14 @@ describe('confirmStillThere', () => {
     expect(await events(LIVE)).toEqual(['still_there', 'taken_down'])
   })
 
-  it('refuses a request id already used by another visitor, or for another tag', async () => {
+  it('refuses a request id already used by another visitor, for another tag, or for something else', async () => {
     const requestId = crypto.randomUUID()
-    await insertTag(NEW, 'active', HOUR)
+    await createTag({ tag: LLEWELLYN_ST, visitor: alice })
     await still(LIVE, alice, requestId)
     await expect(still(LIVE, bob, requestId)).rejects.toMatchObject({ code: 'conflict' })
     await expect(still(NEW, alice, requestId)).rejects.toMatchObject({ code: 'conflict' })
+    // A create's request id is its tag's id: Still there under it is the same id for something else.
+    await expect(still(NEW, alice, NEW)).rejects.toMatchObject({ code: 'conflict' })
   })
 
   it.each([REMOVED, TAKEN_DOWN, '00000000-0000-4000-8000-000000000000'])('says %s has gone', async (id) => {

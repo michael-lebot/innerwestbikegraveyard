@@ -399,7 +399,7 @@ test.describe('Still there', () => {
     const response = await request.post(`/api/tags/${LLEWELLYN_ST}/removed`, {
       data: { requestId: crypto.randomUUID() },
     })
-    expect([404, 405]).toContain(response.status())
+    expect(response.status()).toBe(404)
     expect(await status()).toBe('active')
     expect(await tagEvents(LLEWELLYN_ST)).not.toContain('removed')
   })

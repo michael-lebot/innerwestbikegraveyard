@@ -5,7 +5,7 @@ import { SECONDARY } from './buttons'
 import { Dialog } from './Dialog'
 import { ErrorText } from './ErrorText'
 import { PinIcon } from './PinIcon'
-import { tagAction } from './TagActions'
+import { markStillThere } from './TagActions'
 import { TagDetails } from './TagDetails'
 
 /**
@@ -28,7 +28,7 @@ export function MatchDialog({
   const [error, setError] = useState<string>()
 
   const yes = async (tag: PublicTag) => {
-    const { tag: updated, message } = await tagAction(tag.id, 'still-there')
+    const { tag: updated, message } = await markStillThere(tag.id)
     if (updated === undefined) return setError(message)
     // A tag that has gone leaves the list, and the form follows once none is left.
     apply(tag.id, updated)

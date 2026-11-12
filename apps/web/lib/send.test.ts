@@ -23,7 +23,7 @@ afterEach(() => {
 /** Sends, letting every wait run, and says how long the waits took. */
 async function sendAll() {
   const start = Date.now()
-  const result = send('/api/tags/x/removed', BODY)
+  const result = send('/api/tags/x/still-there', BODY)
   await vi.runAllTimersAsync()
   return { result: await result, waited: Date.now() - start }
 }
