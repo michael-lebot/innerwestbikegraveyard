@@ -183,7 +183,8 @@ test('while the bikes are being sent, Esc, Cancel and Change location do nothing
     await route.continue()
   })
   await dialog(page).getByRole('button', { name: 'Add 3 bikes to the map' }).click()
-  await expect(dialog(page).getByRole('button', { name: 'Adding…' })).toBeFocused()
+  // Safari doesn't focus a button on a click, so the live region is what says it is under way.
+  await expect(dialog(page).getByRole('button', { name: 'Adding…' })).toBeVisible()
   await expect(announced(page)).toHaveText('Adding 3 bikes…')
   await page.keyboard.press('Escape')
   for (const cancel of await dialog(page).getByRole('button', { name: 'Cancel' }).all())
