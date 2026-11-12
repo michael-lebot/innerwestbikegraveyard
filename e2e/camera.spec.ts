@@ -49,6 +49,14 @@ async function addWithPhoto(page: Page, street: string) {
   return id
 }
 
+/** A tap away from the live tags, and the bar's line for it. */
+async function placeSpot(page: Page) {
+  const map = await mapBox(page)
+  await tap(page, true, { x: map.x + map.width / 2 - 120, y: map.y + map.height / 2 + 120 })
+  await expect(bar(page)).toHaveText(/^Pin on /)
+  return (await bar(page).textContent())!
+}
+
 test('shows on phones only, as the green button, and not while uploads are paused', async ({ page, isMobile }) => {
   for (const path of ['/', '/list']) {
     await page.goto(path)
@@ -146,10 +154,7 @@ test.describe('on a phone', () => {
       const refused = "Got your photo. Your browser didn't share your location. Tap the map or choose a street."
       await expect(bar(page)).toHaveText(refused)
       await expect(announced(page)).toHaveText(refused)
-      const map = await mapBox(page)
-      await tap(page, true, { x: map.x + map.width / 2 - 120, y: map.y + map.height / 2 + 120 })
-      await expect(bar(page)).toHaveText(/^Pin on /)
-      const street = (await bar(page).textContent())!.replace('Pin on ', '')
+      const street = (await placeSpot(page)).replace('Pin on ', '')
       await page.getByRole('button', { name: 'Use this spot' }).click()
       await addWithPhoto(page, street)
     })
@@ -174,14 +179,6 @@ test.describe('on a phone', () => {
     async function arriveAfterStopping(page: Page) {
       await expect.poll(() => page.evaluate(() => (window as unknown as { stopped: boolean }).stopped)).toBe(true)
       await page.evaluate(() => (window as unknown as { arrive: () => void }).arrive())
-    }
-
-    /** A tap away from the live tags, and the bar's line for it. */
-    async function placeSpot(page: Page) {
-      const map = await mapBox(page)
-      await tap(page, true, { x: map.x + map.width / 2 - 120, y: map.y + map.height / 2 + 120 })
-      await expect(bar(page)).toHaveText(/^Pin on /)
-      return (await bar(page).textContent())!
     }
 
     test('a spot tapped first is not replaced by it', async ({ page }) => {
