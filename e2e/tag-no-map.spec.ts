@@ -9,6 +9,7 @@ import {
   resetDb,
   sql,
   startTagging,
+  tagButton,
   tagEvents,
   tap,
   undoInAdmin,
@@ -22,6 +23,8 @@ const dialog = (page: Page) => page.getByRole('dialog')
 const announced = (page: Page) => page.locator('#announcer')
 // Number 12 Llewellyn St, Marrickville, for Use my location.
 const LLEWELLYN_ST = { latitude: -33.90512, longitude: 151.17288 }
+// A rough position is used only once the page has listened for 10 seconds for a better one (§4.1).
+const ROUGH = { timeout: 15_000 }
 
 /** Choose by street as far as its second step: the street found by typing and picked. */
 async function pickStreet(page: Page, typed: string, street: string) {
@@ -78,7 +81,7 @@ test.describe('Choose by street', () => {
     await dialog(page).getByRole('button', { name: 'Add to the map' }).click()
     await expect(announced(page)).toHaveText('Tag added')
     await expect(page.getByRole('heading', { name: '15 bikes in the graveyard' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Tag a dumped bike' })).toBeFocused()
+    await expect(tagButton(page)).toBeFocused()
 
     // The tag is the point and the street picked, which the server checks (§10.3); the number stays in the browser.
     const body = (await posted).postDataJSON()
@@ -225,7 +228,7 @@ test.describe('Choose by street', () => {
     await page.setViewportSize({ width: 375, height: 667 })
     await page.goto('/list')
     await page.addStyleTag({ content: ':root { font-size: 200% }' })
-    await page.getByRole('button', { name: 'Tag a dumped bike' }).click()
+    await tagButton(page).click()
     // Each click below first scrolls its button into view, and fails if anything covers it. Sending the form at this
     // size is tested on the map screen (tag-map.spec.ts).
     await pickStreet(page, 'llew', 'Llewellyn St, Marrickville')
@@ -234,7 +237,7 @@ test.describe('Choose by street', () => {
     await chip(page, 'Lime').click()
     await dialog(page).locator('form').getByRole('button', { name: 'Cancel' }).click()
     await expect(dialog(page)).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Tag a dumped bike' })).toBeFocused()
+    await expect(tagButton(page)).toBeFocused()
   })
 
   test.describe('by keyboard', () => {
@@ -242,7 +245,7 @@ test.describe('Choose by street', () => {
 
     test('types, Tabs to a street and a number, and uses the spot', async ({ page }) => {
       await page.goto('/list')
-      await page.getByRole('button', { name: 'Tag a dumped bike' }).focus()
+      await tagButton(page).focus()
       await page.keyboard.press('Enter')
       await expect(page.getByRole('heading', { name: 'Tag a dumped bike' })).toBeFocused()
       await page.keyboard.press('Tab')
@@ -308,7 +311,7 @@ test.describe('Use my location', () => {
   /** Use my location, then: no pin, the note said, and the other ways still there. */
   async function expectNoPin(page: Page, note: string) {
     await page.getByRole('button', { name: 'Use my location' }).click()
-    await expect(bar(page)).toHaveText(note)
+    await expect(bar(page)).toHaveText(note, ROUGH)
     await expect(announced(page)).toHaveText(note)
     await expectNoAxeViolations(page)
     await expect(newPin(page)).toHaveCount(0)
@@ -323,6 +326,7 @@ test.describe('Use my location', () => {
     context,
     isMobile,
   }) => {
+    test.slow()
     await startTagging(page)
     await context.setGeolocation({ ...TOWN_HALL, accuracy: 10 })
     await expectNoPin(page, "You're outside the Inner West. Tap the map or choose a street.")
@@ -348,6 +352,7 @@ test.describe('Use my location', () => {
     page,
     context,
   }) => {
+    test.slow()
     await startTagging(page, '/list')
     await page.getByRole('button', { name: 'Use my location' }).click()
     await expect(bar(page)).toHaveText('Near Llewellyn St, Marrickville, accurate to about 15 metres')
@@ -359,7 +364,7 @@ test.describe('Use my location', () => {
     await dialog(page).getByRole('button', { name: 'Change location' }).click()
     await context.setGeolocation({ ...LLEWELLYN_ST, accuracy: 80 })
     await page.getByRole('button', { name: 'Use my location' }).click()
-    await expect(bar(page)).toHaveText('Your location is only accurate to about 80 m. Choose a street instead.')
+    await expect(bar(page)).toHaveText('Your location is only accurate to about 80 m. Choose a street instead.', ROUGH)
     await expect(page.getByRole('button', { name: 'Use this spot' })).toBeDisabled()
   })
 })

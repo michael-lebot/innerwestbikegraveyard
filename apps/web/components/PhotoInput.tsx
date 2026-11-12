@@ -4,6 +4,7 @@ import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { shrinkPhoto } from '@/lib/photo'
 import { announce } from './Announcer'
 import { FOCUS_RING_WITHIN, SECONDARY, SMALL } from './buttons'
+import { PHOTO_TYPES } from './CameraButton'
 import { ErrorText } from './ErrorText'
 
 /**
@@ -50,14 +51,7 @@ export function PhotoInput({ photo, onPhoto }: { photo?: Blob; onPhoto: (photo?:
         </div>
       )}
       <label className={`${SECONDARY} cursor-pointer border-dashed ${FOCUS_RING_WITHIN}`}>
-        <input
-          ref={input}
-          type="file"
-          // iOS turns a HEIC photo into a JPEG for this list (§4.3).
-          accept="image/jpeg,image/png,image/webp"
-          onChange={choose}
-          className="sr-only"
-        />
+        <input ref={input} type="file" accept={PHOTO_TYPES} onChange={choose} className="sr-only" />
         {photo ? (
           'Change photo'
         ) : (

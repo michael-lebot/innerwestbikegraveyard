@@ -60,11 +60,14 @@ export async function expectNoAxeViolations(page: Page) {
   ).toEqual([])
 }
 
+/** The button that starts tagging: "Tag without a photo" where Take a photo of a bike shows beside it (§4.3). */
+export const tagButton = (page: Page) => page.getByRole('button', { name: /^Tag (a dumped bike|without a photo)$/ })
+
 /** Opens the map screen, once its map is ready, or /list, and starts tagging there. */
 export async function startTagging(page: Page, path: '/' | '/list' = '/') {
   await page.goto(path)
   if (path === '/') await expect(page.locator('[data-map-ready]')).toBeAttached()
-  await page.getByRole('button', { name: 'Tag a dumped bike' }).click()
+  await tagButton(page).click()
   await expect(page.getByRole('heading', { name: 'Tag a dumped bike' })).toBeFocused()
 }
 
