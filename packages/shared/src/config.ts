@@ -36,19 +36,21 @@ export type ReportReason = keyof typeof REPORT_REASONS
 type Limit = { per: 'visitor' | 'ip' | 'visitor_and_tag'; max: number; hours: number }
 
 /**
- * Starting rate limits (§6): the most one visitor, one IP, or one visitor on one tag may do in a window.
- * One photo per tag is not a counter: `photos.tag_id` is unique.
+ * Rate limits (§6): the most one visitor, one IP, or one visitor on one tag may do in a window. Tags and photos are
+ * set to stop abuse, not a busy street: someone can tag 20 bikes in 5 minutes. The firewall's 20 writes a minute per
+ * IP stops bursts. One photo per tag is not a counter: `photos.tag_id` is unique.
  */
 export const LIMITS = {
   create: [
-    { per: 'visitor', max: 5, hours: 1 },
-    { per: 'visitor', max: 50, hours: 24 },
+    { per: 'visitor', max: 100, hours: 1 },
+    { per: 'visitor', max: 300, hours: 24 },
     // About 3× a visitor's, as many phones share one IP (§6).
-    { per: 'ip', max: 150, hours: 24 },
+    { per: 'ip', max: 900, hours: 24 },
   ],
   photo: [
-    { per: 'visitor', max: 10, hours: 24 },
-    { per: 'ip', max: 25, hours: 24 },
+    { per: 'visitor', max: 100, hours: 1 },
+    { per: 'visitor', max: 300, hours: 24 },
+    { per: 'ip', max: 900, hours: 24 },
   ],
   still_there: [
     { per: 'visitor_and_tag', max: 1, hours: 12 },

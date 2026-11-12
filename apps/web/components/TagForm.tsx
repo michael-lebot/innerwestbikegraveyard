@@ -1,5 +1,5 @@
 'use client'
-import { LIMITS, type Operator, OPERATORS, type Problem, PROBLEMS, type TagJson } from '@iwb/shared'
+import { type Operator, OPERATORS, type Problem, PROBLEMS, type TagJson } from '@iwb/shared'
 import { type FormEvent, Fragment, useEffect, useRef, useState } from 'react'
 import { canRetry, send, type SendError } from '@/lib/send'
 import { announce } from './Announcer'
@@ -22,7 +22,8 @@ const PROBLEM_CHOICES = (Object.keys(PROBLEMS) as Problem[]).map((key) => [key, 
 const MISSING = { operator: 'Choose whose bike it is.', problem: "Choose what's wrong." }
 const PHOTO_FAILED = "Tag added, but the photo didn't upload."
 /** As many bikes as one visitor may tag in an hour (§4.2, §6). */
-const MOST_BIKES = LIMITS.create.find(({ per, hours }) => per === 'visitor' && hours === 1)!.max
+/** The most bikes one form adds (§4.2): a pile, kept small enough to check at a glance. */
+const MOST_BIKES = 5
 /** Bike 1's radios keep the names the form has always had; each other bike's are its own. */
 const nameOf = (field: 'operator' | 'problem', index: number) => (index ? `${field}-${index + 1}` : field)
 const addedMessage = (count: number) => (count > 1 ? `${count} bikes added` : 'Tag added')
