@@ -42,8 +42,9 @@ type Limit = { per: 'visitor' | 'ip' | 'visitor_and_tag'; max: number; hours: nu
 export const LIMITS = {
   create: [
     { per: 'visitor', max: 5, hours: 1 },
-    { per: 'visitor', max: 15, hours: 24 },
-    { per: 'ip', max: 40, hours: 24 },
+    { per: 'visitor', max: 50, hours: 24 },
+    // About 3× a visitor's, as many phones share one IP (§6).
+    { per: 'ip', max: 150, hours: 24 },
   ],
   photo: [
     { per: 'visitor', max: 10, hours: 24 },
