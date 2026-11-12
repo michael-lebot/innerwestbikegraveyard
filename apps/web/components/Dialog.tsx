@@ -9,15 +9,17 @@ import { SMALL } from './buttons'
  * it is the full-height sheet over a short strip of the map, which can't be touched; in the side-panel layout it
  * fills the panel and dims the map (§12, §13). While an on-screen keyboard is open, which shrinks only the visual
  * viewport (`100dvh` and fixed positions don't follow it), the dialog fills what is left of that viewport, so the
- * keyboard covers none of it (§12).
+ * keyboard covers none of it (§12). While `busy`, sending something that must finish, it can't be closed.
  */
 export function Dialog({
   title,
   onCancel,
+  busy,
   children,
 }: {
   title: string
   onCancel: () => void
+  busy?: boolean
   children: React.ReactNode
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
@@ -54,7 +56,7 @@ export function Dialog({
       // Esc: the page decides what closing means, and unmounts the dialog.
       onCancel={(event) => {
         event.preventDefault()
-        onCancel()
+        if (!busy) onCancel()
       }}
       style={{ '--top': `${DIALOG_TOP_REM}rem` } as CSSProperties}
       className="top-(--fit-top,var(--top)) bottom-(--fit-bottom,0) m-0 h-auto max-h-none w-full max-w-none overflow-y-auto overscroll-contain border-t border-line bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-ink shadow-[0_-4px_12px_rgb(0_0_0/0.08)] backdrop:bg-transparent wide:top-(--fit-top,3.5rem) wide:w-95 wide:border-t-0 wide:border-r wide:backdrop:bg-[rgb(0_0_0/0.4)]"
@@ -64,7 +66,7 @@ export function Dialog({
           <h2 id="dialog-heading" ref={heading} tabIndex={-1} className="text-lg font-bold">
             {title}
           </h2>
-          <button type="button" className={SMALL} onClick={onCancel}>
+          <button type="button" className={`${SMALL} disabled:opacity-50`} disabled={busy} onClick={onCancel}>
             Cancel
           </button>
         </div>

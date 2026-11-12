@@ -7,7 +7,7 @@ import { type Draft, TagForm } from './TagForm'
 
 /**
  * The steps after a spot is chosen (§3): "Is it one of these?" when live tags are within 25 m, then the form. It stays
- * mounted from the start of tagging to the end, so the answers, the photo and the tag's id outlive Change location.
+ * mounted from the start of tagging to the end, so the answers, the photo and the tags' ids outlive Change location.
  */
 export function TagFlow({
   spot,
@@ -30,13 +30,13 @@ export function TagFlow({
   onChangeLocation: () => void
   onClose: () => void
 }) {
-  const [draft, setDraft] = useState<Draft>(() => ({ id: crypto.randomUUID(), photo }))
+  const [draft, setDraft] = useState<Draft>(() => ({ bikes: [{ id: crypto.randomUUID() }], photo }))
   // The spot the visitor said "No, it's another bike" for.
   const [another, setAnother] = useState<Spot>()
 
   if (!spot) return null
-  // Once added, the tag is among the live tags while its photo is sent: it is never one of these.
-  const others = tags.filter((tag) => tag.id !== draft.id)
+  // Once added, the tags are among the live tags while the photo is sent: they are never one of these.
+  const others = tags.filter((tag) => !draft.bikes.some(({ id }) => id === tag.id))
   const nearby = another === spot ? [] : nearbyTags(spot, others)
   return nearby.length ? (
     <MatchDialog tags={nearby} now={now} apply={apply} onNo={() => setAnother(spot)} onClose={onClose} />
