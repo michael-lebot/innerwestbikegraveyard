@@ -25,7 +25,7 @@ const PHOTO_FAILED = "Tag added, but the photo didn't upload."
 const MOST_BIKES = LIMITS.create.find(({ per, hours }) => per === 'visitor' && hours === 1)!.max
 /** Bike 1's radios keep the names the form has always had; each other bike's are its own. */
 const nameOf = (field: 'operator' | 'problem', index: number) => (index ? `${field}-${index + 1}` : field)
-const added = (count: number) => (count > 1 ? `${count} bikes added` : 'Tag added')
+const addedMessage = (count: number) => (count > 1 ? `${count} bikes added` : 'Tag added')
 
 /**
  * The tag form (§3): the spot, whose bike, what's wrong and an optional photo, then Add to the map. No free text (§6).
@@ -51,8 +51,9 @@ export function TagForm({
   onClose: () => void
 }) {
   const [checked, setChecked] = useState(false)
-  // Why a tag wasn't added, and how many before it were.
-  const [failure, setFailure] = useState<{ message: string; count: number }>()
+  const [failure, setFailure] = useState<string>()
+  // The bikes the server has answered for: on the map at this spot, so no longer to be changed or sent.
+  const [added, setAdded] = useState<string[]>([])
   // Why the photo didn't upload, and the tags, already added, still without it.
   const [photoFailure, setPhotoFailure] = useState<{ error: SendError; ids: string[] }>()
   const [sending, setSending] = useState(false)
@@ -61,6 +62,8 @@ export function TagForm({
   const focusNext = useRef<string>(null)
   const { bikes } = draft
   const several = bikes.length > 1
+  // An added bike stays a named group even if the bikes after it are removed, to say that it is added.
+  const grouped = several || added.length > 0
 
   // The form has made way for the line saying the photo failed, which takes the focus.
   useEffect(() => status.current?.focus(), [photoFailure])
@@ -111,7 +114,7 @@ export function TagForm({
     if (error) {
       setPhotoFailure({ error, ids: failed })
       announce(`${photoFailed(failed.length)} ${error.message}`)
-    } else done(photoFailure ? 'Photo added' : added(bikes.length))
+    } else done(photoFailure ? 'Photo added' : addedMessage(bikes.length))
   }
 
   const photoFailed = (count: number) =>
@@ -131,9 +134,12 @@ export function TagForm({
     }
     setSending(true)
     setFailure(undefined)
-    for (const [count, { id, operator, problem }] of bikes.entries()) {
-      // Each is on the map as soon as it is added. A bike added before is a repeat: the server answers it with the tag
-      // as it is and counts nothing (§5.3), so sending every bike again adds only the rest.
+    if (several) announce(`Adding ${bikes.length} bikes…`)
+    const acknowledged = [...added]
+    for (const { id, operator, problem } of bikes) {
+      // Each is on the map as soon as it is added. The first not answered for is sent again, as its answer may have been
+      // lost: the server answers a repeat with the tag as it is and counts nothing (§5.3).
+      if (acknowledged.includes(id)) continue
       const sent = await send<{ tag: TagJson | null }>('/api/tags', {
         id,
         lat: spot.lat,
@@ -145,26 +151,35 @@ export function TagForm({
       if (!sent.ok) {
         // The answers stay, and so do the ids, so sending again can't add a tag twice.
         setSending(false)
-        setFailure({ message: sent.error.message, count })
-        announce(several ? `${count} of ${bikes.length} bikes added. ${sent.error.message}` : sent.error.message)
+        setAdded(acknowledged)
+        setFailure(sent.error.message)
+        announce(
+          several ? `${acknowledged.length} of ${bikes.length} bikes added. ${sent.error.message}` : sent.error.message,
+        )
         return
       }
       apply(id, sent.data.tag)
+      acknowledged.push(id)
     }
     setSending(false)
     if (draft.photo) await attach(bikes.map(({ id }) => id))
-    else done(added(bikes.length))
+    else done(addedMessage(bikes.length))
   }
 
   if (photoFailure)
     return (
-      <Dialog title="Tag a dumped bike" onCancel={onClose}>
+      <Dialog title="Tag a dumped bike" onCancel={onClose} busy={sending}>
         <p ref={status} tabIndex={-1} className="font-bold">
           {photoFailed(photoFailure.ids.length)}
         </p>
         <ErrorText>{photoFailure.error.message}</ErrorText>
         <div className="flex flex-wrap gap-2">
-          <button type="button" className={`${SECONDARY} grow`} onClick={onClose}>
+          <button
+            type="button"
+            className={`${SECONDARY} grow disabled:opacity-50`}
+            disabled={sending}
+            onClick={onClose}
+          >
             Skip
           </button>
           {/* A refusal, such as a paused upload or a file that isn't a photo, would only be refused again. */}
@@ -177,76 +192,92 @@ export function TagForm({
       </Dialog>
     )
   return (
-    <Dialog title="Tag a dumped bike" onCancel={onClose}>
+    <Dialog title="Tag a dumped bike" onCancel={onClose} busy={sending}>
       <form noValidate onSubmit={submit} className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="font-bold">{pinOn(spot)}</p>
-          <button type="button" className={SMALL} onClick={onChangeLocation}>
-            Change location
-          </button>
-        </div>
-        {bikes.map((bike, index) => {
-          const questions = (
-            <>
-              <Chips
-                legend="Whose bike?"
-                name={nameOf('operator', index)}
-                choices={OPERATOR_CHOICES}
-                value={bike.operator}
-                error={checked && !bike.operator ? MISSING.operator : undefined}
-                onChange={(operator) => update(index, { operator })}
-              />
-              <Chips
-                legend="What's wrong?"
-                name={nameOf('problem', index)}
-                choices={PROBLEM_CHOICES}
-                value={bike.problem}
-                error={checked && !bike.problem ? MISSING.problem : undefined}
-                onChange={(problem) => update(index, { problem })}
-              />
-            </>
-          )
-          // One bike is the form as it always was; with several, each is a named group (§10.4).
-          return several ? (
-            <fieldset
-              key={bike.id}
-              id={`bike-${bike.id}`}
-              tabIndex={-1}
-              className="flex flex-col gap-4 rounded-[10px] border border-edge p-3"
-            >
-              <legend className="px-1 font-bold">Bike {index + 1}</legend>
-              {index > 0 && (
-                <button type="button" className={`${SMALL} self-start`} onClick={() => removeBike(index)}>
-                  Remove bike {index + 1}
-                </button>
-              )}
-              {questions}
-            </fieldset>
+        {/* Nothing changes while the bikes are sent; the button below keeps the focus and says "Adding…". */}
+        <div inert={sending} className="contents">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-bold">{pinOn(spot)}</p>
+            {/* Once a bike is added, the pile's spot is fixed. */}
+            {!added.length && (
+              <button type="button" className={SMALL} onClick={onChangeLocation}>
+                Change location
+              </button>
+            )}
+          </div>
+          {bikes.map((bike, index) => {
+            const questions = (
+              <>
+                <Chips
+                  legend="Whose bike?"
+                  name={nameOf('operator', index)}
+                  choices={OPERATOR_CHOICES}
+                  value={bike.operator}
+                  error={checked && !bike.operator ? MISSING.operator : undefined}
+                  onChange={(operator) => update(index, { operator })}
+                />
+                <Chips
+                  legend="What's wrong?"
+                  name={nameOf('problem', index)}
+                  choices={PROBLEM_CHOICES}
+                  value={bike.problem}
+                  error={checked && !bike.problem ? MISSING.problem : undefined}
+                  onChange={(problem) => update(index, { problem })}
+                />
+              </>
+            )
+            const isAdded = added.includes(bike.id)
+            // One bike is the form as it always was; with several, each is a named group (§10.4).
+            return grouped ? (
+              <fieldset
+                key={bike.id}
+                id={`bike-${bike.id}`}
+                tabIndex={-1}
+                disabled={isAdded}
+                className="flex flex-col gap-4 rounded-[10px] border border-edge p-3"
+              >
+                <legend className="px-1 font-bold">
+                  Bike {index + 1}
+                  {isAdded && ', added'}
+                </legend>
+                {index > 0 && !isAdded && (
+                  <button type="button" className={`${SMALL} self-start`} onClick={() => removeBike(index)}>
+                    Remove bike {index + 1}
+                  </button>
+                )}
+                {questions}
+              </fieldset>
+            ) : (
+              <Fragment key={bike.id}>{questions}</Fragment>
+            )
+          })}
+          {bikes.length < MOST_BIKES ? (
+            <button id="add-bike" type="button" className={SECONDARY} onClick={addBike}>
+              Add another bike here
+            </button>
           ) : (
-            <Fragment key={bike.id}>{questions}</Fragment>
-          )
-        })}
-        {bikes.length < MOST_BIKES ? (
-          <button id="add-bike" type="button" className={SECONDARY} onClick={addBike}>
-            Add another bike here
-          </button>
-        ) : (
-          <p>That&apos;s the most in one go.</p>
-        )}
-        {uploadsPaused ? (
-          <p>Photos are switched off for now.</p>
-        ) : (
-          <PhotoInput photo={draft.photo} onPhoto={(photo) => onDraft({ ...draft, photo })} />
-        )}
-        {failure && several && (
-          <p className="font-bold">
-            {failure.count} of {bikes.length} bikes added.
-          </p>
-        )}
-        {failure && <ErrorText>{failure.message}</ErrorText>}
+            <p>That&apos;s the most in one go.</p>
+          )}
+          {uploadsPaused ? (
+            <p>Photos are switched off for now.</p>
+          ) : (
+            <PhotoInput photo={draft.photo} onPhoto={(photo) => onDraft({ ...draft, photo })} />
+          )}
+          {failure && several && (
+            <p className="font-bold">
+              {added.length} of {bikes.length} bikes added.
+            </p>
+          )}
+          {failure && <ErrorText>{failure}</ErrorText>}
+        </div>
         {/* Side by side where both fit; at large text sizes, one above the other, each the full width. */}
         <div className="flex flex-wrap gap-2">
-          <button type="button" className={`${SECONDARY} grow`} onClick={onClose}>
+          <button
+            type="button"
+            className={`${SECONDARY} grow disabled:opacity-50`}
+            disabled={sending}
+            onClick={onClose}
+          >
             Cancel
           </button>
           <button type="submit" className={`${PRIMARY} grow`}>

@@ -129,30 +129,72 @@ test('Change location keeps every bike', async ({ page, isMobile }) => {
   await expect(bike(page, 3).getByRole('radio', { name: 'Knocked over' })).toBeChecked()
 })
 
-test('the second tag failing leaves the first added and says so; sending again adds the rest and no duplicate', async ({
+test('the third tag failing leaves the first two added and fixed, at the spot; sending again adds only the third', async ({
   page,
 }) => {
   await openFormOnList(page)
   await describeThree(page)
-  // The first bike's tag goes through; every try of the second is cut off.
+  // The first two bikes' tags go through; every try of the third is cut off.
   let creates = 0
   await page.route('/api/tags', (route) =>
-    route.request().method() === 'POST' && ++creates > 1 ? route.abort() : route.continue(),
+    route.request().method() === 'POST' && ++creates > 2 ? route.abort() : route.continue(),
   )
   await dialog(page).getByRole('button', { name: 'Add 3 bikes to the map' }).click()
-  await expect(dialog(page).getByText('1 of 3 bikes added.')).toBeVisible()
-  await expect(announced(page)).toContainText('1 of 3 bikes added.')
-  expect(await newTags()).toMatchObject([{ operator: 'lime', problem: 'damaged' }])
+  await expect(dialog(page).getByText('2 of 3 bikes added.')).toBeVisible()
+  await expect(announced(page)).toContainText('2 of 3 bikes added.')
+  expect(await newTags()).toMatchObject([
+    { operator: 'lime', problem: 'damaged' },
+    { operator: 'hello', problem: 'damaged' },
+  ])
+  // Both added tags are at this spot, and neither turns the form into "Is it one of these?".
+  await expect(page.getByRole('heading', { name: 'Is it one of these?' })).toHaveCount(0)
+  await expect(dialog(page).getByRole('button', { name: 'Change location' })).toHaveCount(0)
+  for (const n of [1, 2]) {
+    const added = dialog(page).getByRole('group', { name: `Bike ${n}, added`, exact: true })
+    await expect(added.getByRole('radio', { name: 'Hello' })).toBeDisabled()
+    await expect(added.getByRole('button', { name: /^Remove/ })).toHaveCount(0)
+  }
   await expect(bike(page, 3).getByRole('radio', { name: 'Knocked over' })).toBeChecked()
+  await expect(bike(page, 3).getByRole('radio', { name: 'Ario' })).toBeEnabled()
+  await expect(bike(page, 3).getByRole('button', { name: 'Remove bike 3' })).toBeVisible()
+  await expect(addBike(page)).toBeVisible()
 
   await page.unroute('/api/tags')
+  const sent: string[] = []
+  page.on('request', (request) => request.method() === 'POST' && sent.push(request.postDataJSON().id))
   await dialog(page).getByRole('button', { name: 'Add 3 bikes to the map' }).click()
   await expect(announced(page)).toHaveText('3 bikes added')
-  expect(await newTags()).toMatchObject([
+  const tags = await newTags()
+  expect(tags).toMatchObject([
     { operator: 'lime', problem: 'damaged' },
     { operator: 'hello', problem: 'damaged' },
     { operator: 'hello', problem: 'knocked_over' },
   ])
+  expect(sent).toEqual([tags[2].id])
+})
+
+test('while the bikes are being sent, Esc, Cancel and Change location do nothing, and all are added', async ({
+  page,
+}) => {
+  await openFormOnList(page)
+  await describeThree(page)
+  await page.route('/api/tags', async (route) => {
+    if (route.request().method() === 'POST') await new Promise((resolve) => setTimeout(resolve, 1000))
+    await route.continue()
+  })
+  await dialog(page).getByRole('button', { name: 'Add 3 bikes to the map' }).click()
+  await expect(dialog(page).getByRole('button', { name: 'Adding…' })).toBeFocused()
+  await expect(announced(page)).toHaveText('Adding 3 bikes…')
+  await page.keyboard.press('Escape')
+  for (const cancel of await dialog(page).getByRole('button', { name: 'Cancel' }).all())
+    await expect(cancel).toBeDisabled()
+  await dialog(page).getByRole('button', { name: 'Change location', includeHidden: true }).click({ force: true })
+  await expect(dialog(page).getByRole('heading', { name: 'Tag a dumped bike' })).toBeVisible()
+  await expect(dialog(page).getByRole('button', { name: 'Adding…' })).toBeVisible()
+
+  await expect(announced(page)).toHaveText('3 bikes added', { timeout: 15_000 })
+  await expect(dialog(page)).toHaveCount(0)
+  expect(await newTags()).toHaveLength(3)
 })
 
 test('one photo failing leaves the tags, says how many it failed for, and Try again sends only that one', async ({
