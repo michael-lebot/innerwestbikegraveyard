@@ -70,11 +70,9 @@ export function TagActions({
         <p id={`ask-${id}`} className="font-bold">
           Is it still there?
         </p>
-        <div className="grid grid-cols-2 gap-2">
-          <button type="button" className={outlined ? SECONDARY : PRIMARY} onClick={act}>
-            Still there
-          </button>
-        </div>
+        <button type="button" className={outlined ? SECONDARY : PRIMARY} onClick={act}>
+          Still there
+        </button>
         {error && <ErrorText>{error}</ErrorText>}
       </div>
     </>

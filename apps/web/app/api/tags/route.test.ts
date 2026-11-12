@@ -25,8 +25,8 @@ const request = (path: string, body: unknown, type = 'application/json') =>
   })
 const newTag = () => ({ id: crypto.randomUUID(), ...LLEWELLYN_ST })
 const post = (body: unknown) => create(request('/api/tags', body), { params: Promise.resolve({}) })
-const act = (route: typeof stillThere, id: string, body: unknown = { requestId: crypto.randomUUID() }) =>
-  route(request(`/api/tags/${id}/x`, body), { params: Promise.resolve({ id }) })
+const still = (id: string, body: unknown = { requestId: crypto.randomUUID() }) =>
+  stillThere(request(`/api/tags/${id}/still-there`, body), { params: Promise.resolve({ id }) })
 
 async function expectError(response: Response, code: ErrorCode) {
   expect(response.status).toBe(ERRORS[code].status)
@@ -119,7 +119,7 @@ describe('POST /api/tags/[id]/still-there', () => {
   it('starts a live tag’s 48 hours again', async () => {
     const tag = newTag()
     const { tag: before } = await (await post(tag)).json()
-    const response = await act(stillThere, tag.id)
+    const response = await still(tag.id)
     expect(response.headers.get('Cache-Control')).toBe('no-store')
     const { tag: after } = await response.json()
     expect(after).toMatchObject({ id: tag.id })
@@ -127,11 +127,11 @@ describe('POST /api/tags/[id]/still-there', () => {
   })
 
   it('says 410 for a tag that has gone', async () => {
-    await expectError(await act(stillThere, crypto.randomUUID()), 'tag_gone')
+    await expectError(await still(crypto.randomUUID()), 'tag_gone')
   })
 
   it('refuses a tag id or request id that is not a UUID with 400', async () => {
-    await expectError(await act(stillThere, 'not-a-uuid'), 'invalid')
-    await expectError(await act(stillThere, crypto.randomUUID(), { requestId: 'again' }), 'invalid')
+    await expectError(await still('not-a-uuid'), 'invalid')
+    await expectError(await still(crypto.randomUUID(), { requestId: 'again' }), 'invalid')
   })
 })
