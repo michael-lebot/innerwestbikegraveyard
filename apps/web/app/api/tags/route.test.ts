@@ -1,5 +1,5 @@
 import { getLiveTag } from '@iwb/server'
-import { ERRORS, type ErrorCode } from '@iwb/shared'
+import { ERRORS, type ErrorCode, LIMITS } from '@iwb/shared'
 import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { isBot } from '@/lib/bot'
@@ -107,8 +107,9 @@ describe('POST /api/tags', () => {
     await expectError(await post({ ...newTag(), lat: -33.896976, lng: 151.180046 }), 'outside_area')
   })
 
-  it('stops a visitor after 5 tags in an hour with 429, saying when to retry', async () => {
-    for (let i = 0; i < 5; i++) expect((await post(newTag())).status).toBe(200)
+  it("stops a visitor past an hour's tags with 429, saying when to retry", { timeout: 60_000 }, async () => {
+    const hourly = LIMITS.create.find(({ per, hours }) => per === 'visitor' && hours === 1)!.max
+    for (let i = 0; i < hourly; i++) expect((await post(newTag())).status).toBe(200)
     const response = await post(newTag())
     expect(Number(response.headers.get('Retry-After'))).toBeGreaterThan(0)
     await expectError(response, 'rate_limited')
