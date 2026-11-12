@@ -1,8 +1,10 @@
 import { rm } from 'node:fs/promises'
+import { LIMITS } from '@iwb/shared'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { deleteFiles, listFiles, putFile } from './blob'
 import { db } from './client'
 import { env } from './env'
+import { countAction } from './limits'
 import { attachPhoto, deleteExpiredPhotos, type NewPhoto, openAnyPhoto, openPhoto, uploadsPaused } from './photos'
 import { takeDown } from './moderation'
 import { getLiveTag, getTag, listLiveTags, undoRemoval } from './tags'
@@ -51,6 +53,10 @@ const photos = () =>
   db.$queryRaw<{ id: string; blobPath: string; thumbPath: string; width: number; height: number; bytes: number }[]>`
     SELECT id::text, blob_path AS "blobPath", thumb_path AS "thumbPath", width, height, bytes FROM photos`
 const files = async () => (await listFiles()).map((file) => file.path).toSorted()
+/** One count against each of the photo limits. */
+const ONE_EACH = LIMITS.photo.map(() => 1)
+/** The fewest photos any visitor limit allows. */
+const MOST_PHOTOS = Math.min(...LIMITS.photo.filter(({ per }) => per === 'visitor').map(({ max }) => max))
 const counts = async () =>
   (await db.$queryRaw<{ count: number }[]>`SELECT count FROM rate_counters`).map((counter) => counter.count)
 
@@ -71,7 +77,7 @@ describe('attachPhoto', () => {
     expect(photo!.blobPath).toMatch(/^[\da-f-]{36}\.webp$/)
     expect(await files()).toEqual([photo!.blobPath, photo!.thumbPath].toSorted())
     expect(tag).toMatchObject({ id: TAG, photoId: photo!.id })
-    expect(await counts()).toEqual([1, 1])
+    expect(await counts()).toEqual(ONE_EACH)
   })
 
   it('§5.5 photo attach: refused for another visitor than the one who tagged the bike, before any image work', async () => {
@@ -121,7 +127,7 @@ describe('attachPhoto', () => {
     const first = await attach()
     expect(await attach()).toEqual(first)
     expect(await photos()).toHaveLength(1)
-    expect(await counts()).toEqual([1, 1])
+    expect(await counts()).toEqual(ONE_EACH)
   })
 
   it('attaches one photo when the same upload arrives twice at once, and answers both with it', async () => {
@@ -130,7 +136,7 @@ describe('attachPhoto', () => {
     const [photo] = await photos()
     expect(one.tag).toMatchObject({ photoId: photo!.id })
     expect(await files()).toEqual([photo!.blobPath, photo!.thumbPath].toSorted())
-    expect(await counts()).toEqual([1, 1])
+    expect(await counts()).toEqual(ONE_EACH)
   })
 
   it('§5.5 outside failures: a Blob failure leaves the tag saved, with no photo row and no stray files', async () => {
@@ -144,20 +150,22 @@ describe('attachPhoto', () => {
     expect(await counts()).toEqual([])
   })
 
-  describe('at the daily limit of 10', () => {
-    const ids = Array.from({ length: 11 }, (_, i) => `5eed0000-0000-4000-8000-1000000000${String(i).padStart(2, '0')}`)
+  describe('one photo short of the limit', () => {
+    const ids = ['5eed0000-0000-4000-8000-100000000000', '5eed0000-0000-4000-8000-100000000001']
     beforeEach(async () => {
       for (const id of ids) await insertTag(id)
-      for (const id of ids.slice(0, 9)) await attach(alice, id)
+      await db.$transaction(async (tx) => {
+        for (let i = 1; i < MOST_PHOTOS; i++) await countAction(tx, 'photo', alice)
+      })
     })
 
-    it('refuses the 11th photo before any image work', async () => {
-      await attach(alice, ids[9])
+    it('refuses the one past the limit before any image work', async () => {
+      await attach(alice, ids[0])
       makePhoto.mockClear()
       vi.mocked(putFile).mockClear()
-      await expect(attach(alice, ids[10])).rejects.toMatchObject({ code: 'rate_limited' })
+      await expect(attach(alice, ids[1])).rejects.toMatchObject({ code: 'rate_limited' })
       expectNoWork()
-      expect(await photos()).toHaveLength(10)
+      expect(await photos()).toHaveLength(1)
     })
 
     it('§5.5 photo attach: of two at once past the first look, one is refused in its transaction, deleting its files', async () => {
@@ -171,11 +179,11 @@ describe('attachPhoto', () => {
         return PHOTO
       }
       makePhoto.mockImplementationOnce(afterBoth).mockImplementationOnce(afterBoth)
-      const results = await Promise.allSettled([attach(alice, ids[9]), attach(alice, ids[10])])
+      const results = await Promise.allSettled([attach(alice, ids[0]), attach(alice, ids[1])])
       expect(results.map((result) => result.status).toSorted()).toEqual(['fulfilled', 'rejected'])
       expect(results.find((result) => result.status === 'rejected')).toMatchObject({ reason: { code: 'rate_limited' } })
       const kept = await photos()
-      expect(kept).toHaveLength(10)
+      expect(kept).toHaveLength(1)
       expect(await files()).toEqual(kept.flatMap((photo) => [photo.blobPath, photo.thumbPath]).toSorted())
     })
   })

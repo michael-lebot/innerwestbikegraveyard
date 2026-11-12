@@ -1,7 +1,8 @@
-import { type NewTag, PROBLEMS, REPORT_REASONS } from '@iwb/shared'
+import { LIMITS, type NewTag, PROBLEMS, REPORT_REASONS } from '@iwb/shared'
 import { where } from '@iwb/shared/geo'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from './client'
+import { countAction } from './limits'
 import { Problem, ReportReason } from './generated/prisma/enums'
 import { takeDown } from './moderation'
 import {
@@ -171,7 +172,10 @@ describe('createTag', () => {
   })
 
   it('stops at the limit, keeping nothing of the refused tag', async () => {
-    for (let i = 0; i < 5; i++) await createTag({ tag: { ...LLEWELLYN_ST, id: crypto.randomUUID() }, visitor: alice })
+    const hourly = LIMITS.create.find(({ per, hours }) => per === 'visitor' && hours === 1)!.max
+    await db.$transaction(async (tx) => {
+      for (let i = 0; i < hourly; i++) await countAction(tx, 'create', alice)
+    })
     await expect(createTag({ tag: LLEWELLYN_ST, visitor: alice })).rejects.toMatchObject({ code: 'rate_limited' })
     expect(await row(NEW)).toBeUndefined()
   })
