@@ -94,6 +94,9 @@ export function TagForm({
     onClose()
   }
 
+  const photoFailed = (count: number) =>
+    several ? `Bikes added, but the photo didn't upload for ${count} of them.` : PHOTO_FAILED
+
   /** Sends the photo to each tag, one copy each. Sent again, it can't add a second: a tag has one photo (§5.3). */
   const attach = async (ids: string[]) => {
     if (sending) return
@@ -116,9 +119,6 @@ export function TagForm({
       announce(`${photoFailed(failed.length)} ${error.message}`)
     } else done(photoFailure ? 'Photo added' : addedMessage(bikes.length))
   }
-
-  const photoFailed = (count: number) =>
-    several ? `Bikes added, but the photo didn't upload for ${count} of them.` : PHOTO_FAILED
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -165,6 +165,8 @@ export function TagForm({
     if (draft.photo) await attach(bikes.map(({ id }) => id))
     else done(addedMessage(bikes.length))
   }
+
+  const addLabel = several ? `Add ${bikes.length} bikes to the map` : 'Add to the map'
 
   if (photoFailure)
     return (
@@ -281,7 +283,7 @@ export function TagForm({
             Cancel
           </button>
           <button type="submit" className={`${PRIMARY} grow`}>
-            {sending ? 'Adding…' : several ? `Add ${bikes.length} bikes to the map` : 'Add to the map'}
+            {sending ? 'Adding…' : addLabel}
           </button>
         </div>
       </form>

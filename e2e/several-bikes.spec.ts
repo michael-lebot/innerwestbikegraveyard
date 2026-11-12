@@ -51,8 +51,8 @@ test('one bike: the form, its button and what it sends are as before', async ({ 
   await openFormOnList(page)
   await expect(dialog(page).getByRole('group', { name: /^Bike / })).toHaveCount(0)
   await expect(addBike(page)).toBeVisible()
-  await page.getByRole('radio', { name: 'Ario' }).locator('..').click()
-  await page.getByRole('radio', { name: 'In waterway' }).locator('..').click()
+  await pick(dialog(page), 'Ario')
+  await pick(dialog(page), 'In waterway')
   const posts: string[] = []
   page.on('request', (request) => request.method() === 'POST' && posts.push(request.url()))
   await dialog(page).getByRole('button', { name: 'Add to the map', exact: true }).click()
