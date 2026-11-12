@@ -4,7 +4,7 @@ import { TagRow } from './TagRow'
 
 /**
  * Live tags grouped by suburb: suburbs, then the streets in each, in alphabetical order. `onSelect` as on TagRow.
- * Without it, this is /list, where each row has Still there and Removed (§10.3); on the map they are on the card.
+ * Without it, this is /list, where each row has Still there (§10.3); on the map they are on the card.
  */
 export function TagList({ tags, onSelect }: { tags: PublicTag[]; onSelect?: (tag: PublicTag) => void }) {
   const bySuburb = new Map<string, PublicTag[]>()

@@ -4,7 +4,6 @@ A simple, interactive map of Sydney's Inner West Council area where anyone can t
 (Lime, Hello, Ario). MIT license.
 
 - Tags expire after 48 hours unless someone marks them **Still there**.
-- Anyone can mark a tag **Removed**, which hides it straight away.
 - **Notify the service provider?** on each tag opens the visitor's own email app with a message to the operator's
   support address, and offers the message to copy. The site itself sends nothing.
 - Photos can be reported. The first report hides a photo straight away and queues it for admin review. Once a photo has

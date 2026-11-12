@@ -21,8 +21,8 @@ export default function PrivacyPage() {
       <ul>
         <li>
           <strong>Tags:</strong> the spot, whose bike it is and what is wrong. There is no free text. A tag is public
-          for up to {TAG_LIFETIME_HOURS} hours after the last sighting, less if it is marked removed or I take it down.
-          After that it stays in the database as a record of its spot, street, operator, problem and times.
+          for up to {TAG_LIFETIME_HOURS} hours after the last sighting, less if I take it down. After that it stays in
+          the database as a record of its spot, street, operator, problem and times.
         </li>
         <li>
           <strong>Photos:</strong> public while their tag is. A photo&apos;s first report hides it until I restore or

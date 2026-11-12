@@ -1,4 +1,4 @@
-import { attachPhoto, createTag, markRemoved, type Visitor } from '@iwb/server'
+import { attachPhoto, createTag, takeDown, type Visitor } from '@iwb/server'
 import sharp from 'sharp'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { processPhoto } from '@/lib/image'
@@ -46,9 +46,9 @@ describe('GET /photo/[id] and /photo/[id]/thumb', () => {
     }
   })
 
-  it('answer 404 once the tag is removed', async () => {
-    const { id, visitor, photoId } = await tagWithPhoto()
-    await markRemoved({ tagId: id, requestId: crypto.randomUUID(), visitor })
+  it('answer 404 once the tag is taken down', async () => {
+    const { id, photoId } = await tagWithPhoto()
+    await takeDown(id)
     for (const route of [full, thumb]) {
       const response = await get(route, photoId)
       expect(response.status).toBe(404)

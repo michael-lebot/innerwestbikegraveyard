@@ -13,7 +13,6 @@ import {
   listRecentRemovals,
   listRecentTags,
   listTagEvents,
-  markRemoved,
   undoRemoval,
 } from './tags'
 import type { Visitor } from './visitors'
@@ -220,57 +219,21 @@ describe('confirmStillThere', () => {
   it('§5.3 repeats: a repeat after the tag has gone says so, rather than giving the tag back as it was', async () => {
     const requestId = crypto.randomUUID()
     await still(LIVE, alice, requestId)
-    await markRemoved({ tagId: LIVE, requestId: crypto.randomUUID(), visitor: bob })
+    await takeDown(LIVE)
     expect(await still(LIVE, alice, requestId)).toEqual({ tag: null })
-    expect(await events(LIVE)).toEqual(['still_there', 'removed'])
+    expect(await events(LIVE)).toEqual(['still_there', 'taken_down'])
   })
 
-  it('refuses a request id already used by another visitor, or for something else', async () => {
+  it('refuses a request id already used by another visitor, or for another tag', async () => {
     const requestId = crypto.randomUUID()
+    await insertTag(NEW, 'active', HOUR)
     await still(LIVE, alice, requestId)
     await expect(still(LIVE, bob, requestId)).rejects.toMatchObject({ code: 'conflict' })
-    await expect(markRemoved({ tagId: LIVE, requestId, visitor: alice })).rejects.toMatchObject({ code: 'conflict' })
+    await expect(still(NEW, alice, requestId)).rejects.toMatchObject({ code: 'conflict' })
   })
 
   it.each([REMOVED, TAKEN_DOWN, '00000000-0000-4000-8000-000000000000'])('says %s has gone', async (id) => {
     await expect(still(id)).rejects.toMatchObject({ code: 'tag_gone' })
-  })
-})
-
-describe('markRemoved', () => {
-  const remove = (tagId: string, visitor = alice, requestId = crypto.randomUUID()) =>
-    markRemoved({ tagId, requestId, visitor })
-
-  it('§5.5 expiry: Removed one second before expires_at removes the tag and leaves its time alone', async () => {
-    await insertTag(NEW, 'active', 1)
-    const { expiresAt } = (await row(NEW))!
-    expect(await remove(NEW)).toEqual({ tag: null })
-    expect(await row(NEW)).toMatchObject({ status: 'removed', expiresAt, removedAt: expect.any(Date) })
-    expect(await events(NEW)).toEqual(['removed'])
-  })
-
-  it('§5.5 expiry: Removed one second after expires_at changes nothing', async () => {
-    await insertTag(NEW, 'active', -1)
-    const before = await row(NEW)
-    await expect(remove(NEW)).rejects.toMatchObject({ code: 'tag_gone' })
-    expect(await row(NEW)).toEqual(before)
-    expect(await events(NEW)).toEqual([])
-    expect(await counts()).toEqual([])
-  })
-
-  it('§5.5 two at once: two simultaneous Removed write one removal', async () => {
-    const results = await Promise.allSettled([remove(LIVE, alice), remove(LIVE, bob)])
-    expect(results.map((result) => result.status).toSorted()).toEqual(['fulfilled', 'rejected'])
-    expect(results.find((result) => result.status === 'rejected')).toMatchObject({ reason: { code: 'tag_gone' } })
-    expect(await events(LIVE)).toEqual(['removed'])
-  })
-
-  it('§5.5 repeats: Removed again with the same request id returns the current state, with one event and one count', async () => {
-    const requestId = crypto.randomUUID()
-    expect(await remove(LIVE, alice, requestId)).toEqual({ tag: null })
-    expect(await remove(LIVE, alice, requestId)).toEqual({ tag: null })
-    expect(await events(LIVE)).toEqual(['removed'])
-    expect(await counts()).toEqual([1, 1])
   })
 })
 
@@ -316,7 +279,7 @@ describe('takeDown', () => {
 
 describe('the admin reads', () => {
   it('getTag finds a tag in any state, with its removal and sightings, and null for no tag', async () => {
-    await markRemoved({ tagId: LIVE, requestId: crypto.randomUUID(), visitor: alice })
+    await db.$executeRaw`UPDATE tags SET status = 'removed', removed_at = now() WHERE id = ${LIVE}::uuid`
     expect(await getTag(LIVE)).toMatchObject({
       id: LIVE,
       status: 'removed',
@@ -330,7 +293,7 @@ describe('the admin reads', () => {
   })
 
   it('listRecentRemovals lists the removed tags, the latest removal first', async () => {
-    await markRemoved({ tagId: LIVE, requestId: crypto.randomUUID(), visitor: alice })
+    await db.$executeRaw`UPDATE tags SET status = 'removed', removed_at = now() WHERE id = ${LIVE}::uuid`
     expect((await listRecentRemovals()).map((tag) => tag.id)).toEqual([LIVE, REMOVED])
   })
 

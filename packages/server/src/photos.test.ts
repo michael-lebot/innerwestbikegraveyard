@@ -5,7 +5,7 @@ import { db } from './client'
 import { env } from './env'
 import { attachPhoto, deleteExpiredPhotos, type NewPhoto, openAnyPhoto, openPhoto, uploadsPaused } from './photos'
 import { takeDown } from './moderation'
-import { getLiveTag, getTag, listLiveTags, markRemoved, undoRemoval } from './tags'
+import { getLiveTag, getTag, listLiveTags, undoRemoval } from './tags'
 import type { Visitor } from './visitors'
 
 // The real seam on the tests' own folder, watched, so a test can make it fail once.
@@ -248,7 +248,7 @@ describe('the admin app', () => {
       return stream && new Response(stream).text()
     }
     await db.$executeRaw`UPDATE photos SET status = 'hidden'`
-    await markRemoved({ tagId: TAG, requestId: crypto.randomUUID(), visitor: bob })
+    await db.$executeRaw`UPDATE tags SET status = 'removed', removed_at = now() WHERE id = ${TAG}::uuid`
     expect(await getTag(TAG)).toMatchObject({ photo: { id: photoId, status: 'hidden' } })
     expect(await opened()).toBe('full')
     await takeDown(TAG)
@@ -277,7 +277,7 @@ describe('openPhoto', () => {
   })
 
   it('§5.5 photo and tag together: nothing once the tag is removed, and the photo again after an undo', async () => {
-    await markRemoved({ tagId: TAG, requestId: crypto.randomUUID(), visitor: bob })
+    await db.$executeRaw`UPDATE tags SET status = 'removed', removed_at = now() WHERE id = ${TAG}::uuid`
     expect(await opened(photoId)).toEqual([null, null])
     await undoRemoval(TAG)
     expect(await opened(photoId)).toEqual(['full', 'thumb'])

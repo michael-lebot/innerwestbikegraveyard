@@ -3,7 +3,6 @@ import { ERRORS, type ErrorCode } from '@iwb/shared'
 import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { isBot } from '@/lib/bot'
-import { POST as removed } from './[id]/removed/route'
 import { POST as stillThere } from './[id]/still-there/route'
 import { POST as create, GET } from './route'
 
@@ -26,7 +25,7 @@ const request = (path: string, body: unknown, type = 'application/json') =>
   })
 const newTag = () => ({ id: crypto.randomUUID(), ...LLEWELLYN_ST })
 const post = (body: unknown) => create(request('/api/tags', body), { params: Promise.resolve({}) })
-const act = (route: typeof removed, id: string, body: unknown = { requestId: crypto.randomUUID() }) =>
+const act = (route: typeof stillThere, id: string, body: unknown = { requestId: crypto.randomUUID() }) =>
   route(request(`/api/tags/${id}/x`, body), { params: Promise.resolve({ id }) })
 
 async function expectError(response: Response, code: ErrorCode) {
@@ -128,33 +127,11 @@ describe('POST /api/tags/[id]/still-there', () => {
   })
 
   it('says 410 for a tag that has gone', async () => {
-    const tag = newTag()
-    await post(tag)
-    await act(removed, tag.id)
-    await expectError(await act(stillThere, tag.id), 'tag_gone')
+    await expectError(await act(stillThere, crypto.randomUUID()), 'tag_gone')
   })
 
   it('refuses a tag id or request id that is not a UUID with 400', async () => {
     await expectError(await act(stillThere, 'not-a-uuid'), 'invalid')
     await expectError(await act(stillThere, crypto.randomUUID(), { requestId: 'again' }), 'invalid')
-  })
-})
-
-describe('POST /api/tags/[id]/removed', () => {
-  it('takes a live tag away, answering that it is no longer live', async () => {
-    const tag = newTag()
-    await post(tag)
-    const response = await act(removed, tag.id)
-    expect(response.status).toBe(200)
-    expect(response.headers.get('Cache-Control')).toBe('no-store')
-    expect(await response.json()).toEqual({ tag: null })
-    expect(await getLiveTag(tag.id)).toBeNull()
-  })
-
-  it('says 410 for a tag already removed', async () => {
-    const tag = newTag()
-    await post(tag)
-    await act(removed, tag.id)
-    await expectError(await act(removed, tag.id), 'tag_gone')
   })
 })

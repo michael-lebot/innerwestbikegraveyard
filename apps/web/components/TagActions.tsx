@@ -7,11 +7,11 @@ import { announce } from './Announcer'
 import { PRIMARY, SECONDARY } from './buttons'
 import { ErrorText } from './ErrorText'
 
-const DONE = { 'still-there': 'Marked still there', removed: 'Removed.' }
+const DONE = { 'still-there': 'Marked still there' }
 
 /**
- * Sends Still there or Removed for one tag and announces how it went. `tag` is the tag as it now is, null once it
- * has gone (removed, or already gone), or undefined when nothing changed and `message` says why.
+ * Sends Still there for one tag and announces how it went. `tag` is the tag as it now is, null once it has gone, or
+ * undefined when nothing changed and `message` says why.
  */
 export async function tagAction(id: string, action: keyof typeof DONE) {
   const sent = await send<{ tag: TagJson | null }>(`/api/tags/${id}/${action}`, { requestId: crypto.randomUUID() })
@@ -67,7 +67,7 @@ export function TagActions({
   return (
     <>
       {/* The buttons need JavaScript; without it they'd do nothing, so they make way for a line saying so. */}
-      <p className="hidden noscript:block">Turn on JavaScript to mark it Still there or Removed.</p>
+      <p className="hidden noscript:block">Turn on JavaScript to mark it Still there.</p>
       <div role="group" aria-labelledby={`ask-${id}`} className="flex flex-col gap-2 noscript:hidden">
         <p id={`ask-${id}`} className="font-bold">
           Is it still there?
@@ -75,9 +75,6 @@ export function TagActions({
         <div className="grid grid-cols-2 gap-2">
           <button type="button" className={outlined ? SECONDARY : PRIMARY} onClick={() => act('still-there')}>
             Still there
-          </button>
-          <button type="button" className={SECONDARY} onClick={() => act('removed')}>
-            Removed
           </button>
         </div>
         {error && <ErrorText>{error}</ErrorText>}

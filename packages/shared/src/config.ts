@@ -54,10 +54,6 @@ export const LIMITS = {
     { per: 'visitor', max: 30, hours: 24 },
     { per: 'ip', max: 60, hours: 24 },
   ],
-  removed: [
-    { per: 'visitor', max: 3, hours: 24 },
-    { per: 'ip', max: 8, hours: 24 },
-  ],
   report: [
     { per: 'visitor', max: 5, hours: 24 },
     { per: 'ip', max: 10, hours: 24 },

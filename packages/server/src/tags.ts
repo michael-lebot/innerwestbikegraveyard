@@ -134,20 +134,6 @@ export function confirmStillThere({ tagId, requestId, visitor }: TagAction) {
   })
 }
 
-/** Removed (§4.2): a live tag goes at once. Its time is left alone, so an undo gives back only what was left. */
-export function markRemoved({ tagId, requestId, visitor }: TagAction) {
-  return db.$transaction(async (tx) => {
-    if (!(await claimRequest(tx, { requestId, tagId, type: 'removed', visitor })))
-      return { tag: await getLiveTag(tagId, tx) }
-    await countAction(tx, 'removed', visitor)
-    // Of two at once, the second waits for the first's row lock, then finds the tag no longer active.
-    const removed = await tx.$executeRaw`
-      UPDATE tags SET status = 'removed', removed_at = now() WHERE id = ${tagId}::uuid AND ${LIVE}`
-    if (!removed) throw new AppError('tag_gone')
-    return { tag: null }
-  })
-}
-
 /** An admin's event, in the statement that makes the change. Admin actions get a server-made request id. */
 const withEvent = (type: TagEventType, change: Prisma.Sql) => Prisma.sql`
   WITH changed AS (${change} RETURNING id)

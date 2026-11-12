@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
-import { chip, expectNoAxeViolations, newTagId, openFormOnList, resetDb, sql } from './support'
+import { chip, expectNoAxeViolations, newTagId, openFormOnList, removeInDb, resetDb, sql } from './support'
 
 test.beforeEach(() => resetDb())
 test.use({ reducedMotion: 'reduce' })
@@ -191,14 +191,12 @@ test('a card opened after its photo was hidden says so in its place, never showi
   await expectNoAxeViolations(page)
 })
 
-test('§5.5 photo and tag together: the photo stops loading once its tag is Removed; the admin app shows it until Take down deletes it', async ({
+test('§5.5 photo and tag together: the photo stops loading once its tag is removed; the admin app shows it until Take down deletes it', async ({
   page,
 }) => {
   const { id, photoId } = await tagWithPhoto(page)
   expect((await page.request.get(`/photo/${photoId}/thumb`)).status()).toBe(200)
-  await page.goto(`/tag/${id}`)
-  await page.getByRole('button', { name: 'Removed' }).click()
-  await expect(page.getByText('Removed.')).toBeVisible()
+  await removeInDb(id)
   for (const path of [`/photo/${photoId}`, `/photo/${photoId}/thumb`])
     expect((await page.request.get(path)).status(), path).toBe(404)
 
