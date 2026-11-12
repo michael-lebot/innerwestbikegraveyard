@@ -21,6 +21,14 @@ export async function locateAfterPhoto(withMap: boolean, signal: AbortSignal): P
   return located.spot ? located : { ...located, note: `Got your photo. ${located.note}` }
 }
 
+/** The other way to tag, which says how it differs where the camera button shows beside it (§4.3). */
+export const TagLabel = () => (
+  <>
+    <span className="pointer-coarse:hidden">Tag a dumped bike</span>
+    <span className="hidden pointer-coarse:inline">Tag without a photo</span>
+  </>
+)
+
 /**
  * Take a photo of a bike (§4.3): a file input that opens the phone's own camera, shown only where the main pointer is
  * touch, and only with JavaScript. The photo is shrunk here and handed on; a file that isn't a photo is said here.

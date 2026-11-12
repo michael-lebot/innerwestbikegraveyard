@@ -6,7 +6,7 @@ import { flushSync } from 'react-dom'
 import { useLiveTags } from '@/lib/use-live-tags'
 import { announce } from './Announcer'
 import { PRIMARY, PRIMARY_UNLESS_CAMERA } from './buttons'
-import { CameraButton, FINDING_YOU, locateAfterPhoto } from './CameraButton'
+import { CameraButton, FINDING_YOU, locateAfterPhoto, TagLabel } from './CameraButton'
 import { CrowdChooser } from './CrowdChooser'
 import { Legend } from './Legend'
 import { type Located, useReading } from './LocateButton'
@@ -311,7 +311,7 @@ export function MapScreen() {
                 className={`${uploadsPaused ? PRIMARY : PRIMARY_UNLESS_CAMERA} grow-2 basis-44`}
                 onClick={startTagging}
               >
-                Tag a dumped bike
+                {uploadsPaused ? 'Tag a dumped bike' : <TagLabel />}
               </button>
               {/* The panel has room for the list itself, so it needs no List toggle (§13). */}
               <div className="grow basis-36 wide:hidden">

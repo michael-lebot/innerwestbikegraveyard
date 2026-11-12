@@ -9,6 +9,7 @@ import {
   resetDb,
   sql,
   startTagging,
+  tagButton,
   tagEvents,
   tap,
   undoInAdmin,
@@ -80,7 +81,7 @@ test.describe('Choose by street', () => {
     await dialog(page).getByRole('button', { name: 'Add to the map' }).click()
     await expect(announced(page)).toHaveText('Tag added')
     await expect(page.getByRole('heading', { name: '15 bikes in the graveyard' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Tag a dumped bike' })).toBeFocused()
+    await expect(tagButton(page)).toBeFocused()
 
     // The tag is the point and the street picked, which the server checks (§10.3); the number stays in the browser.
     const body = (await posted).postDataJSON()
@@ -227,7 +228,7 @@ test.describe('Choose by street', () => {
     await page.setViewportSize({ width: 375, height: 667 })
     await page.goto('/list')
     await page.addStyleTag({ content: ':root { font-size: 200% }' })
-    await page.getByRole('button', { name: 'Tag a dumped bike' }).click()
+    await tagButton(page).click()
     // Each click below first scrolls its button into view, and fails if anything covers it. Sending the form at this
     // size is tested on the map screen (tag-map.spec.ts).
     await pickStreet(page, 'llew', 'Llewellyn St, Marrickville')
@@ -236,7 +237,7 @@ test.describe('Choose by street', () => {
     await chip(page, 'Lime').click()
     await dialog(page).locator('form').getByRole('button', { name: 'Cancel' }).click()
     await expect(dialog(page)).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Tag a dumped bike' })).toBeFocused()
+    await expect(tagButton(page)).toBeFocused()
   })
 
   test.describe('by keyboard', () => {
@@ -244,7 +245,7 @@ test.describe('Choose by street', () => {
 
     test('types, Tabs to a street and a number, and uses the spot', async ({ page }) => {
       await page.goto('/list')
-      await page.getByRole('button', { name: 'Tag a dumped bike' }).focus()
+      await tagButton(page).focus()
       await page.keyboard.press('Enter')
       await expect(page.getByRole('heading', { name: 'Tag a dumped bike' })).toBeFocused()
       await page.keyboard.press('Tab')

@@ -1,6 +1,6 @@
 import { gzipSync } from 'node:zlib'
 import { expect, type Page, type Request, type Response, test } from '@playwright/test'
-import { resetDb, sql } from './support'
+import { resetDb, sql, tagButton } from './support'
 
 // SPEC.md §11.1, in compressed bytes as transferred by `next start` (gzip).
 // The 120 KB JavaScript budget was reset at M0 (2026-11-09): Next 16.4.5 and React 19.3.1 alone transfer 138,644 B
@@ -166,7 +166,7 @@ test('opening the tag form and picking a chip each reach the next paint in time'
   const timed = await interactionTimer(page)
   // Instant camera moves, so the tap lands once the map has zoomed in for placing.
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  await page.getByRole('button', { name: 'Tag a dumped bike' }).click()
+  await tagButton(page).click()
   const map = (await page.getByRole('region', { name: 'Map', exact: true }).boundingBox())!
   await page.touchscreen.tap(map.x + map.width / 2 - 120, map.y + map.height / 2 + 120)
   await expect(page.getByRole('button', { name: 'Use this spot' })).toBeEnabled()
@@ -185,7 +185,7 @@ test('opening the tag form and picking a chip each reach the next paint in time'
 
 test('on /list, typing a street and choosing it each reach the next paint in time', async ({ page }) => {
   const timed = await interactionTimer(page, '/list')
-  await page.getByRole('button', { name: 'Tag a dumped bike' }).click()
+  await tagButton(page).click()
   await page.getByRole('button', { name: 'Choose by street' }).click()
   await expect(page.getByText('Type part of its name.')).toBeVisible()
   const search = page.getByRole('searchbox', { name: 'Street' })
@@ -218,7 +218,7 @@ test("/list loads the streets only when Choose by street opens, and a suburb's h
   const bytes = async (response: Response) => (await response.request().sizes()).responseBodySize
 
   await page.goto('/list', { waitUntil: 'networkidle' })
-  await page.getByRole('button', { name: 'Tag a dumped bike' }).click()
+  await tagButton(page).click()
   expect(await loaded(isStreets), 'streets before Choose by street').toBe(0)
   const streets = next(isStreets)
   await page.getByRole('button', { name: 'Choose by street' }).click()

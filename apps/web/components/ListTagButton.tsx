@@ -5,7 +5,7 @@ import { lazy, Suspense, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { announce } from './Announcer'
 import { PRIMARY, PRIMARY_UNLESS_CAMERA } from './buttons'
-import { CameraButton, FINDING_YOU, locateAfterPhoto } from './CameraButton'
+import { CameraButton, FINDING_YOU, locateAfterPhoto, TagLabel } from './CameraButton'
 import { useReading } from './LocateButton'
 import { Placement, type Spot } from './Placement'
 
@@ -67,7 +67,7 @@ export function ListTagButton({ tags, now, uploadsPaused }: { tags: PublicTag[];
           className={`${uploadsPaused ? PRIMARY : PRIMARY_UNLESS_CAMERA} grow-2 basis-36 noscript:hidden`}
           onClick={() => setTagging('place')}
         >
-          Tag a dumped bike
+          {uploadsPaused ? 'Tag a dumped bike' : <TagLabel />}
         </button>
       </>
     )

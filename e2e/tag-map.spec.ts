@@ -9,6 +9,7 @@ import {
   resetDb,
   sql,
   startTagging,
+  tagButton,
   tagEvents,
   tap,
   undoInAdmin,
@@ -143,7 +144,7 @@ test.describe('placing the pin', () => {
     await tap(page, isMobile, { x: map.x + map.width / 2, y: map.y + map.height / 2 })
     await page.getByRole('button', { name: 'Cancel' }).click()
     await expect(newPin(page)).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Tag a dumped bike' })).toBeFocused()
+    await expect(tagButton(page)).toBeFocused()
   })
 
   test.describe('by keyboard', () => {
@@ -152,7 +153,7 @@ test.describe('placing the pin', () => {
     test('moves the pin 10 m an arrow and 50 m with Shift, and Esc cancels', async ({ page }) => {
       await page.goto('/')
       await expect(page.locator('[data-map-ready]')).toBeAttached()
-      await page.getByRole('button', { name: 'Tag a dumped bike' }).focus()
+      await tagButton(page).focus()
       await page.keyboard.press('Enter')
       await expect(page.getByRole('heading', { name: 'Tag a dumped bike' })).toBeFocused()
       // Back past the map's own buttons to the map. The pins are out of the way: past each, the map would pan to it.
@@ -195,7 +196,7 @@ test.describe('placing the pin', () => {
 
       await page.keyboard.press('Escape')
       await expect(newPin(page)).toHaveCount(0)
-      await expect(page.getByRole('button', { name: 'Tag a dumped bike' })).toBeFocused()
+      await expect(tagButton(page)).toBeFocused()
       await expect(pin).not.toHaveAttribute('tabindex')
     })
   })
@@ -224,7 +225,7 @@ test.describe('the dialogs', () => {
     await page.getByRole('button', { name: 'Yes, this bike' }).click()
     await expect(dialog(page)).toHaveCount(0)
     await expect(page.locator('#announcer')).toHaveText('Marked still there')
-    await expect(page.getByRole('button', { name: 'Tag a dumped bike' })).toBeFocused()
+    await expect(tagButton(page)).toBeFocused()
     const [tag] = await sql(
       `SELECT expires_at - now() > interval '47 hours' AS reset FROM tags WHERE street = 'Llewellyn St'`,
     )
@@ -259,7 +260,7 @@ test.describe('the dialogs', () => {
     await expect(page.locator('#announcer')).toHaveText('Tag added')
     await expect(page.getByRole('heading', { name: '15 bikes in the graveyard' })).toBeVisible()
     await expect(page.getByRole('button', { name: /^Hello e-bike, knocked over, / })).toHaveCount(2)
-    await expect(page.getByRole('button', { name: 'Tag a dumped bike' })).toBeFocused()
+    await expect(tagButton(page)).toBeFocused()
   })
 
   test('keep the answers across Change location', async ({ page, isMobile }) => {
@@ -288,7 +289,7 @@ test.describe('the dialogs', () => {
     await page.goto('/')
     await expect(page.locator('[data-map-ready]')).toBeAttached()
     await page.addStyleTag({ content: ':root { font-size: 200% }' })
-    await page.getByRole('button', { name: 'Tag a dumped bike' }).click()
+    await tagButton(page).click()
     const map = await mapBox(page)
     await tap(page, true, { x: map.x + map.width / 2 - 30, y: map.y + map.height / 2 + 20 })
     await page.getByRole('button', { name: 'Use this spot' }).click()
@@ -340,7 +341,7 @@ test.describe('the dialogs', () => {
 
       await page.keyboard.press('Escape')
       await expect(dialog(page)).toHaveCount(0)
-      await expect(page.getByRole('button', { name: 'Tag a dumped bike' })).toBeFocused()
+      await expect(tagButton(page)).toBeFocused()
     })
   })
 })
@@ -467,7 +468,7 @@ test.describe('a tag from start to end', () => {
     test.skip(isMobile, 'the desktop project')
     await page.goto('/')
     await expect(page.locator('[data-map-ready]')).toBeAttached()
-    await page.getByRole('button', { name: 'Tag a dumped bike' }).focus()
+    await tagButton(page).focus()
     await page.keyboard.press('Enter')
     await tabTo(page, page.locator('.maplibregl-canvas'), 'Shift+Tab')
     // Enter puts the pin at the crosshair, and Enter again uses it.
@@ -484,7 +485,7 @@ test.describe('a tag from start to end', () => {
     await tabTo(page, page.getByRole('button', { name: 'Add to the map' }))
     await page.keyboard.press('Enter')
     await expect(page.locator('#announcer')).toHaveText('Tag added')
-    await expect(page.getByRole('button', { name: 'Tag a dumped bike' })).toBeFocused()
+    await expect(tagButton(page)).toBeFocused()
     const id = await newTagId()
 
     // A pin is a button in the map's tab order; this one is reached directly, as the order depends on where it is.

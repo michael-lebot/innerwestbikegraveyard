@@ -65,15 +65,20 @@ test('shows on phones only, as the green button, and not while uploads are pause
     const label = page.locator('label', { hasText: 'Take a photo of a bike' })
     await expect(label).toBeVisible({ visible: isMobile })
     if (isMobile) await expect(label).toHaveCSS('background-color', GREEN)
+    // Beside the camera button, the other way to tag says how it differs.
+    const other = page.getByRole('button', {
+      name: isMobile ? 'Tag without a photo' : 'Tag a dumped bike',
+      exact: true,
+    })
+    await expect(other).toHaveCSS('background-color', isMobile ? 'rgba(0, 0, 0, 0)' : GREEN)
+    const box = (await other.boundingBox())!
     // On /list the two sit side by side on a 390 px phone (§4.3).
-    if (isMobile && path === '/list')
-      expect((await label.boundingBox())!.y).toBe(
-        (await page.getByRole('button', { name: 'Tag a dumped bike' }).boundingBox())!.y,
-      )
-    await expect(page.getByRole('button', { name: 'Tag a dumped bike' })).toHaveCSS(
-      'background-color',
-      isMobile ? 'rgba(0, 0, 0, 0)' : GREEN,
-    )
+    if (isMobile && path === '/list') expect((await label.boundingBox())!.y).toBe(box.y)
+    // Map and List line up with the button on their row: the same top and the same height.
+    if (isMobile) {
+      const map = (await page.getByRole('link', { name: 'Map', exact: true }).boundingBox())!
+      expect([map.y, map.height]).toEqual([box.y, box.height])
+    }
     await expectNoAxeViolations(page)
   }
 
