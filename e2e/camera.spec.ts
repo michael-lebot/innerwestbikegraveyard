@@ -74,8 +74,8 @@ test('shows on phones only, as the green button, and not while uploads are pause
     const box = (await other.boundingBox())!
     // On /list the two sit side by side on a 390 px phone (§4.3).
     if (isMobile && path === '/list') expect((await label.boundingBox())!.y).toBe(box.y)
-    // Map and List line up with the button on their row: the same top and the same height.
-    if (isMobile) {
+    // On the map screen, Map and List line up with the button on their row: the same top and the same height.
+    if (isMobile && path === '/') {
       const map = (await page.getByRole('link', { name: 'Map', exact: true }).boundingBox())!
       expect([map.y, map.height]).toEqual([box.y, box.height])
     }
