@@ -160,15 +160,15 @@ test.describe('the list', () => {
       await expect(status.locator('svg')).toBeHidden()
     })
 
-    test('says Still there and Removed need it, in place of buttons that would do nothing', async ({ page }) => {
+    test('says Still there needs it, in place of a button that would do nothing', async ({ page }) => {
       for (const [path, rows] of [
         ['/list', 14],
         [`/tag/${LLEWELLYN_ST}`, 1],
       ] as const) {
         await page.goto(path)
-        await expect(page.getByRole('button', { name: /^(Still there|Removed)$/ })).toHaveCount(0)
-        await expect(page.getByText('Turn on JavaScript to mark it Still there or Removed.')).toHaveCount(rows)
-        await expect(page.getByText('Turn on JavaScript to mark it Still there or Removed.').first()).toBeVisible()
+        await expect(page.getByRole('button', { name: 'Still there' })).toHaveCount(0)
+        await expect(page.getByText('Turn on JavaScript to mark it Still there.')).toHaveCount(rows)
+        await expect(page.getByText('Turn on JavaScript to mark it Still there.').first()).toBeVisible()
       }
     })
   })

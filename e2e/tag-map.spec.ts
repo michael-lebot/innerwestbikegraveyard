@@ -6,6 +6,7 @@ import {
   mapBox,
   newPin,
   newTagId,
+  removeInDb,
   resetDb,
   sql,
   startTagging,
@@ -346,7 +347,7 @@ test.describe('the dialogs', () => {
   })
 })
 
-test.describe('Still there and Removed', () => {
+test.describe('Still there', () => {
   const LLEWELLYN_ST = '5eed0000-0000-4000-8000-000000000003'
   const status = () => sql(`SELECT status FROM tags WHERE id = '${LLEWELLYN_ST}'`).then(([tag]) => tag.status)
   // Times are shown in whole hours, rounded down: just restarted, 48 hours read as 47.
@@ -354,10 +355,7 @@ test.describe('Still there and Removed', () => {
   const row = (page: Page, street: string) =>
     page.getByRole('listitem').filter({ has: page.getByRole('link', { name: new RegExp(street) }) })
 
-  test('on the card: Still there restarts the 48 hours, and Removed takes the pin away', async ({
-    page,
-    browserName,
-  }) => {
+  test('on the card: Still there restarts the 48 hours, and there is no Removed', async ({ page }) => {
     await page.goto('/')
     await expect(page.locator('[data-map-ready]')).toBeAttached()
     // By keyboard, as on a phone this pin overlaps others and a tap opens the chooser.
@@ -373,19 +371,11 @@ test.describe('Still there and Removed', () => {
     await expect(card).toContainText(`Disappears in ${RESTARTED}`)
     // Focus stays in the sheet: on the button, or, as Safari doesn't focus a tapped button, on the sheet around it.
     expect(await page.locator('#sheet').evaluate((sheet) => sheet.contains(document.activeElement))).toBe(true)
-
-    await card.getByRole('button', { name: 'Removed' }).click()
-    await expect(page.locator('#announcer')).toHaveText('Removed.')
-    await expect(card).toHaveCount(0)
-    await expect(page.getByRole('button', { name: /Llewellyn St, Marrickville/ })).toHaveCount(0)
-    const count = page.getByRole('heading', { name: '13 bikes in the graveyard' })
-    await expect(count).toBeVisible()
-    // The count takes the focus the button had. Safari never gave it to the button, so it stays on the sheet.
-    if (browserName !== 'webkit') await expect(count).toBeFocused()
-    expect(await status()).toBe('removed')
+    // Visitors can't remove a tag: it goes when its 48 hours run out, or when Michael takes it down.
+    await expect(card.getByRole('button', { name: 'Removed' })).toHaveCount(0)
   })
 
-  test('on /list: each row has both, and the fourth removal of the day meets the limit', async ({ page }) => {
+  test('on /list: each row has Still there', async ({ page }) => {
     await page.goto('/list')
     await row(page, 'Llewellyn St').getByRole('button', { name: 'Still there' }).click()
     await expect(page.locator('#announcer')).toHaveText('Marked still there')
@@ -393,32 +383,25 @@ test.describe('Still there and Removed', () => {
     await expect(row(page, 'Llewellyn St').getByRole('link')).not.toContainText('left')
     // Every row has Still there, so none of theirs is the screen's one green button: Tag a dumped bike is.
     expect(await greenButtons(page)).toBe(1)
+    await expect(page.getByRole('button', { name: 'Removed' })).toHaveCount(0)
     await expectNoAxeViolations(page)
-
-    for (const street of ['Llewellyn St', 'Norton St', 'Marion St']) {
-      await row(page, street).getByRole('button', { name: 'Removed' }).click()
-      await expect(row(page, street).getByText('Removed.')).toBeFocused()
-    }
-    await row(page, 'Illawarra Rd').getByRole('button', { name: 'Removed' }).click()
-    await expect(row(page, 'Illawarra Rd')).toContainText("You've reached the limit for now. Try again later.")
-    await expect(page.locator('#announcer')).toHaveText("You've reached the limit for now. Try again later.")
-    await expectNoAxeViolations(page)
-
-    await page.reload()
-    await expect(page.getByRole('heading', { name: '11 bikes in the graveyard' })).toBeVisible()
-    await expect(row(page, 'Illawarra Rd')).toHaveCount(1)
   })
 
-  test("on a tag's page: Still there, then Removed", async ({ page }) => {
+  test("on a tag's page: Still there", async ({ page }) => {
     await page.goto(`/tag/${LLEWELLYN_ST}`)
     expect(await greenButtons(page)).toBe(1)
     await page.getByRole('button', { name: 'Still there' }).click()
     await expect(page.getByText(`Disappears in ${RESTARTED}`)).toBeVisible()
-    await page.getByRole('button', { name: 'Removed' }).click()
-    await expect(page.getByText('Removed.')).toBeFocused()
-    expect(await status()).toBe('removed')
-    await page.reload()
-    await expect(page.getByRole('heading', { name: 'This tag has gone' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Removed' })).toHaveCount(0)
+  })
+
+  test('the API has no Removed: a request for it changes nothing', async ({ request }) => {
+    const response = await request.post(`/api/tags/${LLEWELLYN_ST}/removed`, {
+      data: { requestId: crypto.randomUUID() },
+    })
+    expect(response.status()).toBe(404)
+    expect(await status()).toBe('active')
+    expect(await tagEvents(LLEWELLYN_ST)).not.toContain('removed')
   })
 
   test('say so when the tag has already gone', async ({ page }) => {
@@ -431,10 +414,7 @@ test.describe('Still there and Removed', () => {
 })
 
 test.describe('a tag from start to end', () => {
-  test('by touch: add it, mark it Still there and Removed, and undo the removal in the admin', async ({
-    page,
-    isMobile,
-  }) => {
+  test('by touch: add it, mark it Still there, and undo a removal in the admin', async ({ page, isMobile }) => {
     test.skip(!isMobile, 'the phone projects')
     await startTagging(page)
     await placeAwayFromTags(page, true)
@@ -450,21 +430,15 @@ test.describe('a tag from start to end', () => {
     await expect(card).toContainText('Damaged')
     await card.getByRole('button', { name: 'Still there' }).tap()
     await expect(page.locator('#announcer')).toHaveText('Marked still there')
-    await card.getByRole('button', { name: 'Removed' }).tap()
-    await expect(page.locator('#announcer')).toHaveText('Removed.')
-    await expect(page.locator(`[data-tag="${id}"]`)).toHaveCount(0)
-    await expect(page.getByRole('heading', { name: '14 bikes in the graveyard' })).toBeVisible()
 
+    await removeInDb(id)
     await undoInAdmin(page, id)
     await page.reload()
     await expect(page.locator(`[data-tag="${id}"]`)).toHaveCount(1)
     expect(await tagEvents(id)).toEqual(['created', 'still_there', 'removed', 'restored'])
   })
 
-  test('by keyboard: add it, mark it Still there and Removed, and undo the removal in the admin', async ({
-    page,
-    isMobile,
-  }) => {
+  test('by keyboard: add it, mark it Still there, and undo a removal in the admin', async ({ page, isMobile }) => {
     test.skip(isMobile, 'the desktop project')
     await page.goto('/')
     await expect(page.locator('[data-map-ready]')).toBeAttached()
@@ -495,11 +469,8 @@ test.describe('a tag from start to end', () => {
     await tabTo(page, page.getByRole('button', { name: 'Still there' }))
     await page.keyboard.press('Enter')
     await expect(page.locator('#announcer')).toHaveText('Marked still there')
-    await tabTo(page, page.getByRole('button', { name: 'Removed' }))
-    await page.keyboard.press('Enter')
-    await expect(page.locator('#announcer')).toHaveText('Removed.')
-    await expect(page.getByRole('heading', { name: '14 bikes in the graveyard' })).toBeFocused()
 
+    await removeInDb(id)
     await undoInAdmin(page, id)
     await page.reload()
     await expect(page.locator(`[data-tag="${id}"]`)).toHaveCount(1)

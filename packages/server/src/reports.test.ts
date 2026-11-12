@@ -18,7 +18,7 @@ import {
 } from './photos'
 import { listReportedPhotos, reportPhoto, sendDigest } from './reports'
 import { takeDown } from './moderation'
-import { createTag, markRemoved, undoRemoval } from './tags'
+import { createTag, undoRemoval } from './tags'
 import type { Visitor } from './visitors'
 
 vi.mock('./email', () => ({ sendEmail: vi.fn(async () => {}) }))
@@ -125,7 +125,7 @@ describe('reportPhoto', () => {
 
   it('§5.5 photo and tag together: report → remove → undo leaves the photo hidden', async () => {
     await report()
-    await markRemoved({ tagId: TAG, requestId: crypto.randomUUID(), visitor: bob })
+    await db.$executeRaw`UPDATE tags SET status = 'removed', removed_at = now() WHERE id = ${TAG}::uuid`
     expect(await undoRemoval(TAG)).toBe('undone')
     expect(await status()).toBe('hidden')
     expect(await shown()).toBe(false)

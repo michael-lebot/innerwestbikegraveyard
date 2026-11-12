@@ -6,6 +6,7 @@ import {
   mapBox,
   newPin,
   newTagId,
+  removeInDb,
   resetDb,
   sql,
   startTagging,
@@ -384,7 +385,7 @@ test.describe('a tag from start to end', () => {
     ['a house number', (page: Page) => findNumber(page, '12')],
     ['a corner', (page: Page) => dialog(page).getByRole('button', { name: 'near Lynch La' }).click()],
   ] as const)
-    test(`by Choose by street on /list, with ${way}: add it, mark it Still there and Removed, and undo the removal in the admin`, async ({
+    test(`by Choose by street on /list, with ${way}: add it, mark it Still there, and undo a removal in the admin`, async ({
       page,
     }) => {
       await startTagging(page, '/list')
@@ -396,9 +397,8 @@ test.describe('a tag from start to end', () => {
       const row = page.getByRole('listitem').filter({ has: page.locator(`a[href="/tag/${id}"]`) })
       await row.getByRole('button', { name: 'Still there' }).click()
       await expect(announced(page)).toHaveText('Marked still there')
-      await row.getByRole('button', { name: 'Removed' }).click()
-      await expect(row.getByText('Removed.')).toBeFocused()
 
+      await removeInDb(id)
       await undoInAdmin(page, id)
       await page.reload()
       await expect(page.getByRole('heading', { name: '15 bikes in the graveyard' })).toBeVisible()
@@ -409,7 +409,7 @@ test.describe('a tag from start to end', () => {
   test.describe('by Use my location', () => {
     test.use({ permissions: ['geolocation'], geolocation: { ...LLEWELLYN_ST, accuracy: 15 } })
 
-    test('on the map: add it, mark it Still there and Removed, and undo the removal in the admin', async ({ page }) => {
+    test('on the map: add it, mark it Still there, and undo a removal in the admin', async ({ page }) => {
       await startTagging(page)
       await page.getByRole('button', { name: 'Use my location' }).click()
       await expect(bar(page)).toHaveText('Near Llewellyn St, Marrickville, accurate to about 15 metres')
@@ -420,10 +420,8 @@ test.describe('a tag from start to end', () => {
       const card = page.getByRole('region', { name: 'Ario e-bike' })
       await card.getByRole('button', { name: 'Still there' }).click()
       await expect(announced(page)).toHaveText('Marked still there')
-      await card.getByRole('button', { name: 'Removed' }).click()
-      await expect(announced(page)).toHaveText('Removed.')
-      await expect(page.locator(`[data-tag="${id}"]`)).toHaveCount(0)
 
+      await removeInDb(id)
       await undoInAdmin(page, id)
       await page.reload()
       await expect(page.locator(`[data-tag="${id}"]`)).toHaveCount(1)

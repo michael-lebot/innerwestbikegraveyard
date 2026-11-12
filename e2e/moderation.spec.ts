@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
-import { addPhoto, chip, expectNoAxeViolations, openFormOnList, resetDb, sql, undoInAdmin } from './support'
+import { addPhoto, chip, expectNoAxeViolations, openFormOnList, removeInDb, resetDb, sql, undoInAdmin } from './support'
 
 test.beforeEach(() => resetDb())
 test.use({ reducedMotion: 'reduce' })
@@ -151,8 +151,7 @@ test('§5.5 photo and tag together: report → remove → admin undo leaves the 
   const photoId = await addPhoto(LLEWELLYN_ST)
   await page.goto(`/tag/${LLEWELLYN_ST}`)
   await report(page, 'Not a share bike')
-  await page.getByRole('button', { name: 'Removed' }).click()
-  await expect(page.getByText('Removed.')).toBeVisible()
+  await removeInDb(LLEWELLYN_ST)
   await undoInAdmin(page, LLEWELLYN_ST)
   await page.goto(`/tag/${LLEWELLYN_ST}`)
   // Live again, with no photo to show.

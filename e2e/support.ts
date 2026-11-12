@@ -108,6 +108,11 @@ export const newTagId = async () => (await sql(`SELECT id FROM tags WHERE id::te
 export const tagEvents = (id: string) =>
   sql(`SELECT type FROM tag_events WHERE tag_id = '${id}' ORDER BY at`).then((rows) => rows.map((row) => row.type))
 
+/** Removes a tag as visitors could before 12 November 2026, its time left alone, so the admin has a removal to undo. */
+export const removeInDb = (id: string) =>
+  sql(`UPDATE tags SET status = 'removed', removed_at = now() WHERE id = '${id}';
+       INSERT INTO tag_events (tag_id, type, request_id) VALUES ('${id}', 'removed', gen_random_uuid())`)
+
 /**
  * Undoes a tag's removal in the admin app beside the public site, as Michael would (§4.6): the tag's public link
  * pasted into the lookup, then Undo removal.
