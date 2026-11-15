@@ -1,15 +1,18 @@
 import { LOCATION_ACCURACY_METERS } from '@iwb/shared'
 
-/** How long the page waits for a first reading, and then for a better one (§4.1). */
-export const LISTEN_MS = 10_000
+/** How long the page waits for a first reading, which the browser counts from after the permission prompt (§4.1). */
+export const FIRST_MS = 10_000
+/** After a rough first reading, how much longer it listens for an accurate one (§4.1). */
+export const BETTER_MS = 5_000
 
 /**
  * The visitor's position, read for this one try (§4.1). A phone's first reading is often a rough one from Wi-Fi, so
- * after it the page listens up to 10 seconds more for one accurate to 50 m, and then takes the most accurate it got.
- * The first reading has 10 seconds of its own, which the browser counts from after the permission prompt. A refusal,
- * or no first reading, fails. Aborting `signal` stops it and drops its result. It always stops listening.
+ * after it the page listens up to 5 seconds more for one accurate to 50 m, then takes the most accurate it got.
+ * `onRough` hears each better rough reading meanwhile, so the page can say how it is going. A refusal, or no first
+ * reading, fails. Aborting `signal` stops it and drops its result.
+ * It always stops listening.
  */
-export function readPosition(signal: AbortSignal) {
+export function readPosition(signal: AbortSignal, onRough?: (position: GeolocationPosition) => void) {
   return new Promise<GeolocationPosition>((resolve, reject) => {
     let best: GeolocationPosition | undefined
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -22,17 +25,18 @@ export function readPosition(signal: AbortSignal) {
       end()
       reject(signal.reason)
     }
+    const take = (position: GeolocationPosition) => {
+      end()
+      resolve(position)
+    }
     const watch = navigator.geolocation.watchPosition(
       (position) => {
-        if (position.coords.accuracy <= LOCATION_ACCURACY_METERS) {
-          end()
-          return resolve(position)
-        }
-        timer ??= setTimeout(() => {
-          end()
-          resolve(best!)
-        }, LISTEN_MS)
-        if (!best || position.coords.accuracy < best.coords.accuracy) best = position
+        const { accuracy } = position.coords
+        if (accuracy <= LOCATION_ACCURACY_METERS) return take(position)
+        if (best && accuracy >= best.coords.accuracy) return
+        best = position
+        timer ??= setTimeout(() => take(best!), BETTER_MS)
+        onRough?.(position)
       },
       (error) => {
         // Once there is a reading, the window above decides.
@@ -40,7 +44,8 @@ export function readPosition(signal: AbortSignal) {
         end()
         reject(error)
       },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: LISTEN_MS },
+      // A fix from the last 15 seconds answers at once, as after the camera or a second tap.
+      { enableHighAccuracy: true, maximumAge: 15_000, timeout: FIRST_MS },
     )
     if (signal.aborted) abort()
     else signal.addEventListener('abort', abort)

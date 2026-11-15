@@ -47,7 +47,7 @@ export function ListTagButton({ tags, now, uploadsPaused }: { tags: PublicTag[];
     setPhoto(taken)
     setNote(FINDING_YOU)
     setTagging('place')
-    const located = await locateAfterPhoto(false, signal)
+    const located = await locateAfterPhoto(false, signal, (progress) => setNote(progress.note))
     if (signal.aborted) return
     setNote(located.note)
     setSpot(located.spot)

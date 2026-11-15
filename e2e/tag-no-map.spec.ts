@@ -24,7 +24,7 @@ const dialog = (page: Page) => page.getByRole('dialog')
 const announced = (page: Page) => page.locator('#announcer')
 // Number 12 Llewellyn St, Marrickville, for Use my location.
 const LLEWELLYN_ST = { latitude: -33.90512, longitude: 151.17288 }
-// A rough position is used only once the page has listened for 10 seconds for a better one (§4.1).
+// A rough position is used only once the page has listened 5 seconds for a better one (§4.1).
 const ROUGH = { timeout: 15_000 }
 
 /** Choose by street as far as its second step: the street found by typing and picked. */
@@ -331,6 +331,12 @@ test.describe('Use my location', () => {
     await startTagging(page)
     await context.setGeolocation({ ...TOWN_HALL, accuracy: 10 })
     await expectNoPin(page, "You're outside the Inner West. Tap the map or choose a street.")
+    // An approximate location, as iOS gives with Precise Location off, says how to fix it.
+    await context.setGeolocation({ ...LLEWELLYN_ST, accuracy: 3000 })
+    await expectNoPin(
+      page,
+      'Your phone is sharing only an approximate location. Turn on Precise Location for your browser, or tap the map or choose a street.',
+    )
     await context.setGeolocation({ ...LLEWELLYN_ST, accuracy: 80 })
     await expectNoPin(page, 'Your location is only accurate to about 80 m. Tap where the bike is, or choose a street.')
 
@@ -345,7 +351,10 @@ test.describe('Use my location', () => {
 
     test('§5.5 Use my location: a refused permission leaves no pin, and the other ways work', async ({ page }) => {
       await startTagging(page)
-      await expectNoPin(page, "Your browser didn't share your location. Tap the map or choose a street.")
+      await expectNoPin(
+        page,
+        "Your browser didn't share your location. You can allow it in your phone's settings. Tap the map or choose a street.",
+      )
     })
   })
 
@@ -365,6 +374,8 @@ test.describe('Use my location', () => {
     await dialog(page).getByRole('button', { name: 'Change location' }).click()
     await context.setGeolocation({ ...LLEWELLYN_ST, accuracy: 80 })
     await page.getByRole('button', { name: 'Use my location' }).click()
+    // While it waits for a better reading, it says how close it has got.
+    await expect(bar(page)).toHaveText('Finding you… accurate to about 80 m so far.')
     await expect(bar(page)).toHaveText('Your location is only accurate to about 80 m. Choose a street instead.', ROUGH)
     await expect(page.getByRole('button', { name: 'Use this spot' })).toBeDisabled()
   })

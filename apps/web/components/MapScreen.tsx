@@ -135,7 +135,7 @@ export function MapScreen() {
     setPhoto(taken)
     setNote(FINDING_YOU)
     startTagging()
-    const located = await locateAfterPhoto(true, signal)
+    const located = await locateAfterPhoto(true, signal, locate)
     if (signal.aborted) return
     locate(located)
     announce(located.note)
