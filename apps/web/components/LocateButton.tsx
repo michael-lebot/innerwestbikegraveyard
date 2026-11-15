@@ -12,10 +12,8 @@ import type { Spot } from './Placement'
  */
 const APPROXIMATE_METERS = 1_000
 
-/** Whether a note says the page is still finding the visitor, which stopping the read must take back. */
-export const stillFinding = (note?: string) => !!note?.includes('Finding ')
-
-type Geo = typeof import('@iwb/shared/geo')
+/** The note, unless it says the page is still finding the visitor, which stopping the read must take back. */
+export const unlessFinding = (note?: string) => (note?.includes('Finding ') ? undefined : note)
 
 /** What a location gave: what to say, a spot to confirm when it is close enough, and where to centre the map. */
 export type Located = { note: string; spot?: Spot; centre?: { lat: number; lng: number } }
@@ -43,7 +41,8 @@ export function useReading(onStop: () => void): Reading {
  * Where the visitor is (§4.1), for Use my location and for Take a photo of a bike (§4.3). The position stays in the
  * browser, and only a spot the visitor then uses is ever sent. A spot is given only inside the council and accurate to
  * 50 m. `withMap` says whether tapping the map is one of the ways left. `onProgress` hears where a rough reading puts
- * the visitor while a better one is awaited. Once `signal` is aborted, what it gives is meant to be dropped.
+ * the visitor while a better one is awaited. Once `signal` is aborted, `onProgress` hears no more, and what it gives is
+ * meant to be dropped.
  */
 export async function locate(
   withMap: boolean,
@@ -54,12 +53,8 @@ export async function locate(
   const instead = (onMap: string) => (withMap ? onMap : 'Choose a street instead.')
   const failed = (why: string) => ({ note: `${why} ${instead('Tap the map or choose a street.')}` })
   // The streets load first, usually from cache: a failed load is said as such, before the phone is asked anything.
-  let where: Geo['where']
-  try {
-    ;({ where } = await import('@iwb/shared/geo'))
-  } catch {
-    return failed("The street data didn't load. Check your connection and try again.")
-  }
+  const geo = await import('@iwb/shared/geo').catch(() => undefined)
+  if (!geo) return failed("The street data didn't load. Check your connection and try again.")
   try {
     const { coords } = await readPosition(signal, ({ coords: { latitude: lat, longitude: lng, accuracy } }) =>
       onProgress?.({
@@ -75,7 +70,7 @@ export async function locate(
       return {
         note: `Your phone is only giving an approximate location, about ${meters} m. Turning on Precise Location for your browser helps, or ${withMap ? 'tap the map or choose a street.' : 'choose a street.'}`,
       }
-    const { inside, street, suburb } = where(lat, lng)
+    const { inside, street, suburb } = geo.where(lat, lng)
     if (!inside) return failed("You're outside the Inner West.")
     if (accuracy > LOCATION_ACCURACY_METERS)
       return {
@@ -90,13 +85,9 @@ export async function locate(
   } catch (error) {
     // Refused (1), location services off or no signal (2), nothing within 10 seconds (3), or no geolocation at all.
     const code = (error as GeolocationPositionError | undefined)?.code
-    return failed(
-      code === 1
-        ? "Your browser didn't share your location. You can allow it in your phone's settings."
-        : code === 3
-          ? "We couldn't find your location in time. It's quicker outdoors."
-          : "We couldn't find your location. Check that location is turned on.",
-    )
+    if (code === 1) return failed("Your browser didn't share your location. You can allow it in your phone's settings.")
+    if (code === 3) return failed("We couldn't find your location in time. It's quicker outdoors.")
+    return failed("We couldn't find your location. Check that location is turned on.")
   }
 }
 
@@ -120,7 +111,7 @@ export function LocateButton({
     setFinding(true)
     const signal = reading.start()
     // Each rough reading on the way is shown and centred, but not announced: the result is.
-    const located = await locate(withMap, signal, (progress) => signal.aborted || onLocate(progress))
+    const located = await locate(withMap, signal, onLocate)
     setFinding(false)
     if (signal.aborted) return
     onLocate(located)

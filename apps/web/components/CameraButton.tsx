@@ -22,7 +22,7 @@ export async function locateAfterPhoto(
 ): Promise<Located> {
   announce(FINDING_YOU)
   const afterPhoto = (located: Located) => ({ ...located, note: `Got your photo. ${located.note}` })
-  const located = await locate(withMap, signal, (progress) => signal.aborted || onProgress(afterPhoto(progress)))
+  const located = await locate(withMap, signal, (progress) => onProgress(afterPhoto(progress)))
   return located.spot ? located : afterPhoto(located)
 }
 
