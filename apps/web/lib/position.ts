@@ -48,8 +48,8 @@ export function readPosition(signal: AbortSignal, onRough?: (position: Geolocati
         end()
         reject(error)
       },
-      // A fix from the last 15 seconds answers at once, as after the camera or a second tap.
-      { enableHighAccuracy: true, maximumAge: 15_000, timeout: FIRST_MS },
+      // Always a fresh fix: a second tap is a request to try again, not to hear the last answer.
+      { enableHighAccuracy: true, maximumAge: 0, timeout: FIRST_MS },
     )
     if (signal.aborted) abort()
     else signal.addEventListener('abort', abort)

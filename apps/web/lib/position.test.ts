@@ -40,8 +40,8 @@ it('waits past a rough reading for an accurate one, and stops listening', async 
 
 it('takes the most accurate rough reading 5 seconds after the first, however late that came', async () => {
   const position = read()
-  // The browser times the first reading itself, leaving out the permission prompt, and may answer from a recent fix.
-  expect(options).toMatchObject({ timeout: FIRST_MS, maximumAge: 15_000 })
+  // The browser times the first reading itself, leaving out the permission prompt, and always takes a fresh fix.
+  expect(options).toMatchObject({ timeout: FIRST_MS, maximumAge: 0 })
   await vi.advanceTimersByTimeAsync(FIRST_MS * 3)
   send(300)
   send(80)
