@@ -15,10 +15,15 @@ export const FINDING_YOU = 'Got your photo. Finding where you are…'
  * After Take a photo of a bike, where the visitor is (§4.3): said first, then found as Use my location does. When it
  * places no spot, the note says why after "Got your photo."
  */
-export async function locateAfterPhoto(withMap: boolean, signal: AbortSignal): Promise<Located> {
+export async function locateAfterPhoto(
+  withMap: boolean,
+  signal: AbortSignal,
+  onProgress: (located: Located) => void,
+): Promise<Located> {
   announce(FINDING_YOU)
-  const located = await locate(withMap, signal)
-  return located.spot ? located : { ...located, note: `Got your photo. ${located.note}` }
+  const afterPhoto = (located: Located) => ({ ...located, note: `Got your photo. ${located.note}` })
+  const located = await locate(withMap, signal, (progress) => onProgress(afterPhoto(progress)))
+  return located.spot ? located : afterPhoto(located)
 }
 
 /** The other way to tag, which says how it differs where the camera button shows beside it (§4.3). */

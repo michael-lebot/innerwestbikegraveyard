@@ -9,7 +9,7 @@ import { PRIMARY, PRIMARY_UNLESS_CAMERA } from './buttons'
 import { CameraButton, FINDING_YOU, locateAfterPhoto, TagLabel } from './CameraButton'
 import { CrowdChooser } from './CrowdChooser'
 import { Legend } from './Legend'
-import { type Located, useReading } from './LocateButton'
+import { type Located, unlessFinding, useReading } from './LocateButton'
 import { MapLoading } from './MapLoading'
 import { OUTSIDE, Placement, pinOn, type Spot } from './Placement'
 import { TagCard } from './TagCard'
@@ -51,7 +51,7 @@ export function MapScreen() {
   const [photo, setPhoto] = useState<Blob>()
   const cameraInput = useRef<HTMLInputElement>(null)
   // Finding where the visitor is. Stopped early, it no longer says it is finding them.
-  const reading = useReading(() => setNote((current) => (current === FINDING_YOU ? undefined : current)))
+  const reading = useReading(() => setNote(unlessFinding))
   const geo = useRef<Promise<Geo>>(null)
 
   // The card and the chooser show the tags as they are now. A refresh that takes away the open tag, or every tag in
@@ -135,7 +135,7 @@ export function MapScreen() {
     setPhoto(taken)
     setNote(FINDING_YOU)
     startTagging()
-    const located = await locateAfterPhoto(true, signal)
+    const located = await locateAfterPhoto(true, signal, locate)
     if (signal.aborted) return
     locate(located)
     announce(located.note)
@@ -220,7 +220,10 @@ export function MapScreen() {
             spot={spot}
             centre={centre}
             onPlace={tagging === 'place' ? place : undefined}
-            onUse={() => setTagging('describe')}
+            onUse={() => {
+              reading.stop()
+              setTagging('describe')
+            }}
           />
         )}
         {status !== 'ready' && (

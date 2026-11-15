@@ -13,7 +13,7 @@ const FINDING = 'Got your photo. Finding where you are…'
 const LLEWELLYN_ST = { latitude: -33.90512, longitude: 151.17288 }
 // About 10 m from the live tag on Llewellyn St, nearest the lane behind it, Juliett St.
 const BESIDE_LIVE_TAG = { latitude: -33.90458, longitude: 151.17193 }
-// A rough position is used only once the page has listened for 10 seconds for a better one (§4.1).
+// A rough position is used only once the page has listened 5 seconds for a better one (§4.1).
 const ROUGH = { timeout: 15_000 }
 
 /** A small JPEG drawn by the browser itself, as the camera would hand over. */
@@ -135,7 +135,7 @@ test.describe('on a phone', () => {
     }) => {
       test.slow()
       await takePhoto(page)
-      await expect(bar(page)).toHaveText(FINDING)
+      await expect(bar(page)).toHaveText('Got your photo. Finding you… accurate to about 80 m so far.')
       const rough =
         'Got your photo. Your location is only accurate to about 80 m. Tap where the bike is, or choose a street.'
       await expect(bar(page)).toHaveText(rough, ROUGH)
@@ -156,7 +156,8 @@ test.describe('on a phone', () => {
       page,
     }) => {
       await takePhoto(page)
-      const refused = "Got your photo. Your browser didn't share your location. Tap the map or choose a street."
+      const refused =
+        "Got your photo. Your browser didn't share your location. You can allow it in your phone's settings. Tap the map or choose a street."
       await expect(bar(page)).toHaveText(refused)
       await expect(announced(page)).toHaveText(refused)
       const street = (await placeSpot(page)).replace('Pin on ', '')
