@@ -78,7 +78,16 @@ export function Placement({
         <button type="button" className={SECONDARY} onClick={onCancel}>
           Cancel
         </button>
-        <button type="button" className={`${PRIMARY} disabled:opacity-50`} disabled={!spot} onClick={onUse}>
+        <button
+          type="button"
+          className={`${PRIMARY} disabled:opacity-50`}
+          disabled={!spot}
+          onClick={() => {
+            // A reading still on its way must not move the spot the visitor has just confirmed.
+            reading.stop()
+            onUse()
+          }}
+        >
           Use this spot
         </button>
       </div>

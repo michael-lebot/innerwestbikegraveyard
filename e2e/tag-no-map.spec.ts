@@ -331,11 +331,11 @@ test.describe('Use my location', () => {
     await startTagging(page)
     await context.setGeolocation({ ...TOWN_HALL, accuracy: 10 })
     await expectNoPin(page, "You're outside the Inner West. Tap the map or choose a street.")
-    // An approximate location, as iOS gives with Precise Location off, says how to fix it.
+    // An approximate location, as iOS gives with Precise Location off, says what helps.
     await context.setGeolocation({ ...LLEWELLYN_ST, accuracy: 3000 })
     await expectNoPin(
       page,
-      'Your phone is sharing only an approximate location. Turn on Precise Location for your browser, or tap the map or choose a street.',
+      'Your phone is only giving an approximate location, about 3000 m. Turning on Precise Location for your browser helps, or tap the map or choose a street.',
     )
     await context.setGeolocation({ ...LLEWELLYN_ST, accuracy: 80 })
     await expectNoPin(page, 'Your location is only accurate to about 80 m. Tap where the bike is, or choose a street.')
@@ -344,6 +344,43 @@ test.describe('Use my location', () => {
     const map = await mapBox(page)
     await tap(page, isMobile, { x: map.x + map.width / 2, y: map.y + map.height / 2 })
     await expect(bar(page)).toHaveText('Pin on Llewellyn St, Marrickville')
+  })
+
+  test('while one reading settles, says how close it has got, then proposes the pin once it is accurate', async ({
+    page,
+    context,
+  }) => {
+    await startTagging(page, '/list')
+    await context.setGeolocation({ ...LLEWELLYN_ST, accuracy: 300 })
+    await page.getByRole('button', { name: 'Use my location' }).click()
+    await expect(bar(page)).toHaveText('Finding you… accurate to about 300 m so far.')
+    // The same watch hears the phone's next, better readings.
+    await context.setGeolocation({ ...LLEWELLYN_ST, accuracy: 120 })
+    await expect(bar(page)).toHaveText('Finding you… accurate to about 120 m so far.')
+    await context.setGeolocation({ ...LLEWELLYN_ST, accuracy: 15 })
+    await expect(bar(page)).toHaveText('Near Llewellyn St, Marrickville, accurate to about 15 metres')
+    await expect(announced(page)).toHaveText('Near Llewellyn St, Marrickville, accurate to about 15 metres')
+    // It has stopped listening: a later reading changes nothing.
+    await context.setGeolocation({ ...LLEWELLYN_ST, accuracy: 200 })
+    await page.waitForTimeout(500)
+    await expect(bar(page)).toHaveText('Near Llewellyn St, Marrickville, accurate to about 15 metres')
+    await expect(page.getByRole('button', { name: 'Use this spot' })).toBeEnabled()
+  })
+
+  test('a reading still on its way is dropped once Choose by street opens, and stops saying it is finding you', async ({
+    page,
+    context,
+  }) => {
+    await startTagging(page, '/list')
+    await context.setGeolocation({ ...LLEWELLYN_ST, accuracy: 300 })
+    await page.getByRole('button', { name: 'Use my location' }).click()
+    await expect(bar(page)).toHaveText('Finding you… accurate to about 300 m so far.')
+    await page.getByRole('button', { name: 'Choose by street' }).click()
+    await page.keyboard.press('Escape')
+    await expect(bar(page)).toHaveText('Use your location, or choose the street.')
+    await context.setGeolocation({ ...LLEWELLYN_ST, accuracy: 15 })
+    await page.waitForTimeout(500)
+    await expect(bar(page)).toHaveText('Use your location, or choose the street.')
   })
 
   test.describe('refused', () => {

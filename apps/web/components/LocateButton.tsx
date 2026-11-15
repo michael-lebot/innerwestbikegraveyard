@@ -12,6 +12,11 @@ import type { Spot } from './Placement'
  */
 const APPROXIMATE_METERS = 1_000
 
+/** Whether a note says the page is still finding the visitor, which stopping the read must take back. */
+export const stillFinding = (note?: string) => !!note?.includes('Finding ')
+
+type Geo = typeof import('@iwb/shared/geo')
+
 /** What a location gave: what to say, a spot to confirm when it is close enough, and where to centre the map. */
 export type Located = { note: string; spot?: Spot; centre?: { lat: number; lng: number } }
 
@@ -48,24 +53,29 @@ export async function locate(
   // The ways that are left: on the map, a tap or a street; on /list, a street.
   const instead = (onMap: string) => (withMap ? onMap : 'Choose a street instead.')
   const failed = (why: string) => ({ note: `${why} ${instead('Tap the map or choose a street.')}` })
+  // The streets load first, usually from cache: a failed load is said as such, before the phone is asked anything.
+  let where: Geo['where']
   try {
-    const [{ where }, { coords }] = await Promise.all([
-      import('@iwb/shared/geo'),
-      readPosition(signal, ({ coords: { latitude: lat, longitude: lng, accuracy } }) =>
-        onProgress?.({
-          note: `Finding you… accurate to about ${Math.round(accuracy)} m so far.`,
-          centre: { lat, lng },
-        }),
-      ),
-    ])
+    ;({ where } = await import('@iwb/shared/geo'))
+  } catch {
+    return failed("The street data didn't load. Check your connection and try again.")
+  }
+  try {
+    const { coords } = await readPosition(signal, ({ coords: { latitude: lat, longitude: lng, accuracy } }) =>
+      onProgress?.({
+        note: `Finding you… accurate to about ${Math.round(accuracy)} m so far.`,
+        // An approximate centre could be kilometres out, so the map stays put (§4.1).
+        centre: accuracy > APPROXIMATE_METERS ? undefined : { lat, lng },
+      }),
+    )
     const { latitude: lat, longitude: lng, accuracy } = coords
-    // iOS with Precise Location off, for one: the centre could be a kilometre out, so the map stays put.
+    const meters = Math.round(accuracy)
+    // As iOS gives with Precise Location off, though a phone still settling can be as rough: so it says "helps".
     if (accuracy > APPROXIMATE_METERS)
       return {
-        note: `Your phone is sharing only an approximate location. Turn on Precise Location for your browser, or ${withMap ? 'tap the map or choose a street.' : 'choose a street.'}`,
+        note: `Your phone is only giving an approximate location, about ${meters} m. Turning on Precise Location for your browser helps, or ${withMap ? 'tap the map or choose a street.' : 'choose a street.'}`,
       }
     const { inside, street, suburb } = where(lat, lng)
-    const meters = Math.round(accuracy)
     if (!inside) return failed("You're outside the Inner West.")
     if (accuracy > LOCATION_ACCURACY_METERS)
       return {

@@ -56,6 +56,14 @@ it('takes the most accurate rough reading 5 seconds after the first, however lat
   expect(clearWatch).toHaveBeenCalledWith(7)
 })
 
+it('ignores a reading the browser had already queued when it settled', async () => {
+  const position = read()
+  send(30)
+  send(80)
+  await expect(position).resolves.toBe(30)
+  expect(onRough).not.toHaveBeenCalled()
+})
+
 it('fails when refused, or with no first reading', async () => {
   for (const code of [1, 3]) {
     const position = read()

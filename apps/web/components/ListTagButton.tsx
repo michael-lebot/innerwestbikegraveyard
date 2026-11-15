@@ -6,7 +6,7 @@ import { flushSync } from 'react-dom'
 import { announce } from './Announcer'
 import { PRIMARY, PRIMARY_UNLESS_CAMERA } from './buttons'
 import { CameraButton, FINDING_YOU, locateAfterPhoto, TagLabel } from './CameraButton'
-import { useReading } from './LocateButton'
+import { stillFinding, useReading } from './LocateButton'
 import { Placement, type Spot } from './Placement'
 
 // The dialogs load when tagging starts (§11.1).
@@ -26,7 +26,7 @@ export function ListTagButton({ tags, now, uploadsPaused }: { tags: PublicTag[];
   const [photo, setPhoto] = useState<Blob>()
   const cameraInput = useRef<HTMLInputElement>(null)
   // Finding where the visitor is. Stopped early, it no longer says it is finding them.
-  const reading = useReading(() => setNote((current) => (current === FINDING_YOU ? undefined : current)))
+  const reading = useReading(() => setNote((current) => (stillFinding(current) ? undefined : current)))
 
   const end = () => {
     reading.stop()

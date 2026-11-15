@@ -16,7 +16,10 @@ export function readPosition(signal: AbortSignal, onRough?: (position: Geolocati
   return new Promise<GeolocationPosition>((resolve, reject) => {
     let best: GeolocationPosition | undefined
     let timer: ReturnType<typeof setTimeout> | undefined
+    // A callback the browser had already queued can still run after the watch is cleared: it must change nothing.
+    let settled = false
     const end = () => {
+      settled = true
       clearTimeout(timer)
       navigator.geolocation.clearWatch(watch)
       signal.removeEventListener('abort', abort)
@@ -31,6 +34,7 @@ export function readPosition(signal: AbortSignal, onRough?: (position: Geolocati
     }
     const watch = navigator.geolocation.watchPosition(
       (position) => {
+        if (settled) return
         const { accuracy } = position.coords
         if (accuracy <= LOCATION_ACCURACY_METERS) return take(position)
         if (best && accuracy >= best.coords.accuracy) return
@@ -40,7 +44,7 @@ export function readPosition(signal: AbortSignal, onRough?: (position: Geolocati
       },
       (error) => {
         // Once there is a reading, the window above decides.
-        if (best) return
+        if (settled || best) return
         end()
         reject(error)
       },
